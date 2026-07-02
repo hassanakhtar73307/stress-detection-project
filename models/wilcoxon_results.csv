@@ -1,7 +1,7 @@
-metric,comparison,statistic,p_value,significant_0.05
-accuracy,rf_vs_xgb,31.0,0.5302845968336095,False
-accuracy,xgb_vs_lstm,0.0,6.103515625e-05,True
-accuracy,rf_vs_lstm,0.0,0.0009815397525216685,True
-f1_macro,rf_vs_xgb,42.0,0.8067663226228976,False
-f1_macro,xgb_vs_lstm,0.0,6.103515625e-05,True
-f1_macro,rf_vs_lstm,0.0,6.103515625e-05,True
+metric,comparison,statistic,p_value,significant_0.05,effect_size_r
+accuracy,rf_vs_xgb,31.0,0.5302845968336095,False,0.0
+accuracy,xgb_vs_lstm,0.0,6.103515625e-05,True,1.0
+accuracy,rf_vs_lstm,0.0,0.0009815397525216685,True,1.0
+f1_macro,rf_vs_xgb,42.0,0.8067663226228976,False,0.07692307692307693
+f1_macro,xgb_vs_lstm,0.0,6.103515625e-05,True,1.0
+f1_macro,rf_vs_lstm,0.0,6.103515625e-05,True,1.0

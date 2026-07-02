@@ -1,4 +1,13 @@
 import pandas as pd
+import numpy as np
+
+def rank_biserial(a, b):
+    diffs = np.array(a) - np.array(b)
+    diffs = diffs[diffs != 0]
+    n = len(diffs)
+    pos = np.sum(diffs > 0)
+    neg = np.sum(diffs < 0)
+    return (pos - neg) / n
 from scipy.stats import wilcoxon
 
 # Load per-subject LOSO results
@@ -34,14 +43,17 @@ for metric in ["accuracy", "f1_macro"]:
         col_a = f"{metric}_{a}"
         col_b = f"{metric}_{b}"
         stat, p = wilcoxon(merged[col_a], merged[col_b])
+        effect = rank_biserial(merged[col_a], merged[col_b])
         sig = "significant (p<0.05)" if p < 0.05 else "not significant"
         print(f"  {a.upper()} vs {b.upper()}: statistic={stat:.3f}, p={p:.4f} -> {sig}")
+        print(f"    effect size (rank-biserial r) = {effect:.3f}")
         results.append({
             "metric": metric,
             "comparison": f"{a}_vs_{b}",
             "statistic": stat,
             "p_value": p,
-            "significant_0.05": p < 0.05
+            "significant_0.05": p < 0.05,
+            "effect_size_r": effect
         })
     print()
 

@@ -1,0 +1,7 @@
+{
+  "n_layers": 2,
+  "units": 128,
+  "dropout": 0.2,
+  "val_accuracy": 0.5442177057266235,
+  "val_loss": 1.010732650756836
+}

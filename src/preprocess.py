@@ -4,18 +4,20 @@ Filters chest signals and segments them into sliding windows with labels.
 """
 
 import numpy as np
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, sosfiltfilt
 from load_wesad import load_subject
 
 FS = 700  # chest sampling rate in Hz
 
 def bandpass_filter(signal, lowcut, highcut, fs=FS, order=3):
-    """Apply a Butterworth bandpass filter to a 1D signal."""
+    """Apply a Butterworth bandpass filter to a 1D signal using SOS form
+    for numerical stability (narrow-band filters, e.g. Resp 0.1-0.35Hz,
+    are unstable in transfer-function 'ba' form and silently produce NaN)."""
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = butter(order, [low, high], btype="band")
-    return filtfilt(b, a, signal)
+    sos = butter(order, [low, high], btype="band", output="sos")
+    return sosfiltfilt(sos, signal)
 
 
 def filter_chest_signals(chest):

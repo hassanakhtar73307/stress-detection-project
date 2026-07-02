@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0a0e0d;
+  --panel: #121917;
+  --panel-border: #1f2b28;
+  --text: #e8f2ef;
+  --text-dim: #7a938c;
+  --baseline: #4ec9a8;
+  --stress: #e0a94e;
+  --high: #e0574e;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+#root {
+  min-height: 100vh;
+  padding: 32px 24px;
+}
+
+.dashboard {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 16px;
+}
+
+.header h1 {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.header .status {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--baseline);
+  margin-right: 6px;
+  box-shadow: 0 0 6px var(--baseline);
+}
+
+.reading-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 28px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reading-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--level-color, var(--baseline));
+  transition: background 0.3s ease;
+}
+
+.reading-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 6px 0;
+}
+
+.reading-value {
+  font-family: var(--mono);
+  font-size: 42px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--level-color, var(--baseline));
+  transition: color 0.3s ease;
+  line-height: 1.1;
+}
+
+.reading-sub {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.confidence-bar-track {
+  height: 6px;
+  background: #1a2422;
+  border-radius: 3px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  background: var(--level-color, var(--baseline));
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.probabilities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.prob-cell {
+  background: #0e1513;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+.prob-cell .label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.prob-cell .value {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.samples-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.samples-panel h2 {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 0 0 14px 0;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.sample-btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: #0e1513;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 10px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.sample-btn:hover {
+  border-color: var(--baseline);
+  color: var(--text);
+}
+
+.sample-btn.active {
+  border-color: var(--level-color, var(--baseline));
+  color: var(--text);
+  background: #0f1815;
+}
+
+.sample-btn .subj {
+  display: block;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.chart-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 20px 24px;
+}
+
+.chart-panel h2 {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 0 0 14px 0;
+}
+
+.footer-note {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: 24px;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .reading-value { font-size: 32px; }
+  .probabilities { grid-template-columns: 1fr; }
+}

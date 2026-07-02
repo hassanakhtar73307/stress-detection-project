@@ -22,3 +22,5 @@
 
 \- Next: exploratory plot of signals by label (baseline/stress/amusement)
 
+Week 5-6: Trained RF and XGBoost under LOSO CV. XGBoost: 71.5% acc, F1=0.554. RF: 68.8% acc, F1=0.536. High per-subject variance observed (45-88% range) — noted as limitation
+

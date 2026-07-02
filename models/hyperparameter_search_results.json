@@ -1,0 +1,18 @@
+{
+  "random_forest": {
+    "best_params": {
+      "max_depth": 15,
+      "n_estimators": 300
+    },
+    "cv_f1_macro": 0.6960359246811209,
+    "val_f1_macro": 0.6479618518771852
+  },
+  "xgboost": {
+    "best_params": {
+      "learning_rate": 0.1,
+      "max_depth": 3
+    },
+    "cv_f1_macro": 0.7618134172702652,
+    "val_f1_macro": 0.649351039538517
+  }
+}

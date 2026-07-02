@@ -46,7 +46,7 @@ print("\nTraining final XGBoost on all subjects...")
 t0 = time.time()
 y_feat_xgb = y_feat - 1  # matches train_traditional_models.py's remapping
 xgb = XGBClassifier(
-    n_estimators=300, max_depth=6, learning_rate=0.1,
+    n_estimators=300, max_depth=3, learning_rate=0.1,
     eval_metric="mlogloss", random_state=42
 )
 xgb.fit(X_feat, y_feat_xgb)

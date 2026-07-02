@@ -104,7 +104,7 @@ if __name__ == "__main__":
     all_summaries = {}
 
     print("Running Random Forest (LOSO)...")
-    rf_fn = lambda: RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42, n_jobs=-1)
+    rf_fn = lambda: RandomForestClassifier(n_estimators=300, max_depth=15, random_state=42, n_jobs=-1)
     rf_results, rf_cm, rf_true, rf_pred = loso_evaluate(df, feature_cols, rf_fn, "Random Forest")
     rf_results.to_csv(os.path.join(OUT_DIR, "rf_loso_results.csv"), index=False)
     plot_confusion_matrix(rf_cm, "Random Forest")
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     print("Running XGBoost (LOSO)...")
     def xgb_fn():
         return XGBClassifier(
-            n_estimators=200, max_depth=6, learning_rate=0.1,
+            n_estimators=300, max_depth=3, learning_rate=0.1,
             objective="multi:softprob", num_class=3,
             eval_metric="mlogloss", random_state=42, n_jobs=-1
         )

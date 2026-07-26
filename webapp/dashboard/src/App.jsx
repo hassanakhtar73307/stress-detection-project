@@ -24,8 +24,9 @@ export default function App() {
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
   const tickRef = useRef(0);
+  const hasInitialised = useRef(false);
 
-  const runPrediction = async (idx) => {
+  const runPrediction = async (idx, recordHistory = true) => {
     setSelectedIdx(idx);
     setLoading(true);
     setError(null);
@@ -33,16 +34,19 @@ export default function App() {
     try {
       const res = await axios.post(API_URL, { features: sample.features });
       setResult({ ...res.data, true_label: sample.true_label, subject: sample.subject });
-      tickRef.current += 1;
-      setHistory((h) => [
-        ...h.slice(-19),
-        {
-          t: tickRef.current,
-          confidence: res.data.confidence,
-          label: res.data.predicted_label,
-          stress_prob: res.data.probabilities.Stress,
-        },
-      ]);
+      if (recordHistory) {
+        tickRef.current += 1;
+        setHistory((h) => [
+          ...h.slice(-19),
+          {
+            t: tickRef.current,
+            time: new Date().toLocaleTimeString([], { hour12: false }),
+            confidence: res.data.confidence,
+            label: res.data.predicted_label,
+            stress_prob: res.data.probabilities.Stress,
+          },
+        ]);
+      }
     } catch (e) {
       setError(e.message || 'Request failed');
     } finally {
@@ -51,7 +55,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    runPrediction(0);
+    if (hasInitialised.current) return;
+    hasInitialised.current = true;
+    runPrediction(0, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -122,7 +128,7 @@ export default function App() {
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={history}>
             <CartesianGrid stroke="#1f2b28" strokeDasharray="3 3" />
-            <XAxis dataKey="t" stroke="#7a938c" fontSize={11} tickLine={false} />
+            <XAxis dataKey="time" stroke="#7a938c" fontSize={11} tickLine={false} />
             <YAxis domain={[0, 1]} stroke="#7a938c" fontSize={11} tickLine={false} />
             <ReferenceLine y={0.5} stroke="#2a3a36" strokeDasharray="4 4" />
             <Tooltip

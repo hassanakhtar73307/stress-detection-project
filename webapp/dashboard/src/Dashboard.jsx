@@ -60,6 +60,11 @@ export default function Dashboard({ onOpenProfile }) {
     }
   };
 
+  const resetHistory = () => {
+    setHistory([]);
+    tickRef.current = 0;
+  };
+
   useEffect(() => {
     if (hasInitialised.current) return;
     hasInitialised.current = true;
@@ -134,7 +139,12 @@ export default function Dashboard({ onOpenProfile }) {
       </div>
 
       <div className="chart-panel">
-        <h2>Prediction history (this session)</h2>
+        <div className="chart-header">
+          <h2>Prediction history (this session)</h2>
+          <button type="button" className="reset-btn" onClick={resetHistory} disabled={history.length === 0}>
+            Reset
+          </button>
+        </div>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={history}>
             <CartesianGrid stroke="#1f2b28" strokeDasharray="3 3" />

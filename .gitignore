@@ -3,3 +3,4 @@ data/WESAD/
 venv/
 node_modules/
 webapp/api/users.db
+__pycache__/

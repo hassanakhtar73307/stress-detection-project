@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
 
-export default function LoginPage({ onSwitchToRegister }) {
+export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,6 +36,9 @@ export default function LoginPage({ onSwitchToRegister }) {
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
       </form>
+      <p className="auth-switch">
+        <button type="button" className="link-btn" onClick={onForgotPassword}>Forgot password?</button>
+      </p>
       <p className="auth-switch">
         Don't have an account?{' '}
         <button type="button" className="link-btn" onClick={onSwitchToRegister}>Create one</button>

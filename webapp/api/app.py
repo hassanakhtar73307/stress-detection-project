@@ -121,6 +121,74 @@ def update_profile():
         "age": age, "occupation": occupation,
     })
 
+@app.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    body = request.get_json(silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "email is required"}), 400
+
+    user = database.get_user_by_email(email)
+    # Always return the same response whether or not the account exists,
+    # so this endpoint can't be used to check which emails are registered.
+    if user:
+        reset_token = auth.generate_reset_token(email)
+        auth.send_reset_email(email, reset_token)
+
+    return jsonify({
+        "message": "If an account exists for that email, a reset code has been generated. "
+                   "Since this project has no live email server configured, check the "
+                   "Flask server console window for the reset code."
+    })
+
+@app.route("/reset-password", methods=["POST"])
+def reset_password():
+    body = request.get_json(silent=True) or {}
+    token = body.get("token") or ""
+    new_password = body.get("new_password") or ""
+
+    if not token or not new_password:
+        return jsonify({"error": "token and new_password are required"}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+    try:
+        email = auth.verify_reset_token(token)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    user = database.get_user_by_email(email)
+    if not user:
+        return jsonify({"error": "No account found for this reset link"}), 404
+
+    database.update_password_by_email(email, auth.hash_password(new_password))
+    return jsonify({"message": "Password updated successfully. You can now log in."})
+
+@app.route("/model-insights", methods=["GET"])
+def model_insights():
+    """Serves the real, precomputed feature-importance results (from
+    src/feature_importance.py) so the dashboard can show genuine evidence
+    of which sensors the deployed model relies on, rather than a static
+    text description."""
+    by_sensor_path = os.path.join(BASE_DIR, "models", "feature_importance_by_sensor.csv")
+    top_features_path = os.path.join(BASE_DIR, "models", "feature_importance.csv")
+
+    if not os.path.exists(by_sensor_path) or not os.path.exists(top_features_path):
+        return jsonify({
+            "available": False,
+            "message": "Run src/feature_importance.py first to generate this data."
+        }), 404
+
+    by_sensor = pd.read_csv(by_sensor_path)
+    by_sensor.columns = ["sensor", "importance_pct"]
+    top_features = pd.read_csv(top_features_path).head(10)
+
+    return jsonify({
+        "available": True,
+        "by_sensor": by_sensor.to_dict(orient="records"),
+        "top_features": top_features.to_dict(orient="records"),
+    })
+
 @app.route("/predict", methods=["POST"])
 @auth.login_required
 def predict():

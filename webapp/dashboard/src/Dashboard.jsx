@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import {
+  LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+} from 'recharts';
 import samples from './sample_windows.json';
 import { useAuth } from './AuthContext';
 
 const API_URL = 'http://127.0.0.1:5000/predict';
+const INSIGHTS_URL = 'http://127.0.0.1:5000/model-insights';
 
 const LEVEL_COLORS = {
   Baseline: '#4ec9a8',
@@ -35,7 +39,8 @@ export default function Dashboard({ onOpenProfile }) {
     const sample = samples[idx];
     try {
       const res = await axios.post(API_URL, { features: sample.features }, { headers: authHeader });
-      setResult({ ...res.data, true_label: sample.true_label, subject: sample.subject });
+      const fullResult = { ...res.data, true_label: sample.true_label, subject: sample.subject };
+      setResult(fullResult);
       if (recordHistory) {
         tickRef.current += 1;
         setHistory((h) => [
@@ -45,7 +50,11 @@ export default function Dashboard({ onOpenProfile }) {
             time: new Date().toLocaleTimeString([], { hour12: false }),
             confidence: res.data.confidence,
             label: res.data.predicted_label,
+            baseline_prob: res.data.probabilities.Baseline,
             stress_prob: res.data.probabilities.Stress,
+            amusement_prob: res.data.probabilities.Amusement,
+            idx,
+            fullResult,
           },
         ]);
       }
@@ -63,6 +72,23 @@ export default function Dashboard({ onOpenProfile }) {
   const resetHistory = () => {
     setHistory([]);
     tickRef.current = 0;
+    setResult(null);
+    setSelectedIdx(null);
+  };
+
+  const undoLast = () => {
+    setHistory((h) => {
+      const next = h.slice(0, -1);
+      if (next.length > 0) {
+        const last = next[next.length - 1];
+        setResult(last.fullResult);
+        setSelectedIdx(last.idx);
+      } else {
+        setResult(null);
+        setSelectedIdx(null);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -73,6 +99,16 @@ export default function Dashboard({ onOpenProfile }) {
   }, []);
 
   const [showInfo, setShowInfo] = useState(false);
+  const [insights, setInsights] = useState(null);
+
+  useEffect(() => {
+    axios.get(INSIGHTS_URL).then((res) => {
+      if (res.data.available) setInsights(res.data);
+    }).catch(() => {
+      // Model insights are optional -- silently skip if not yet generated
+    });
+  }, []);
+
   const levelColor = result ? LEVEL_COLORS[result.predicted_label] : '#4ec9a8';
   const levelLabel = result ? LEVEL_LABELS[result.predicted_label] : '—';
 
@@ -137,29 +173,46 @@ export default function Dashboard({ onOpenProfile }) {
           <>
             <p className="reading-value">{levelLabel}</p>
             <p className="reading-sub">
-              Predicted: {result.predicted_label} · True label: {result.true_label} · Subject {result.subject} · Confidence {(result.confidence * 100).toFixed(1)}%
+              Predicted: {result.predicted_label} · True label: {result.true_label} · Participant {result.subject} · Confidence {(result.confidence * 100).toFixed(1)}%
             </p>
             <div className="confidence-bar-track">
               <div className="confidence-bar-fill" style={{ width: `${result.confidence * 100}%` }} />
             </div>
-            <div className="probabilities">
-              {['Baseline', 'Stress', 'Amusement'].map((cls) => (
-                <div className="prob-cell" key={cls}>
-                  <div className="label">{cls}</div>
-                  <div className="value" style={{ color: LEVEL_COLORS[cls] }}>
-                    {(result.probabilities[cls] * 100).toFixed(1)}%
-                  </div>
-                </div>
-              ))}
+            <div className="prob-chart">
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={['Baseline', 'Stress', 'Amusement'].map((cls) => ({
+                  name: cls, value: result.probabilities[cls] * 100,
+                }))} layout="vertical" margin={{ left: 10, right: 20 }}>
+                  <XAxis type="number" domain={[0, 100]} hide />
+                  <YAxis type="category" dataKey="name" stroke="#7a938c" fontSize={12} tickLine={false} width={80} />
+                  <Tooltip
+                    formatter={(v) => `${v.toFixed(1)}%`}
+                    contentStyle={{ background: '#0e1513', border: '1px solid #1f2b28', borderRadius: 4, fontFamily: 'JetBrains Mono', fontSize: 12 }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {['Baseline', 'Stress', 'Amusement'].map((cls) => (
+                      <Cell key={cls} fill={LEVEL_COLORS[cls]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </>
         ) : (
-          <p className="reading-value">Loading…</p>
+          <>
+            <p className="reading-value">{loading ? 'Loading…' : '—'}</p>
+            {!loading && <p className="reading-sub">No reading yet — click a sample window below.</p>}
+          </>
         )}
       </div>
 
       <div className="samples-panel">
         <h2>Simulated sensor windows (real WESAD data)</h2>
+        <p className="panel-subtitle">
+          Each button is one real recording from a different anonymised study participant.
+          "S16", "S9" etc. are the participant ID codes used in the original WESAD dataset —
+          not real names, just how the dataset labels its 15 volunteers.
+        </p>
         <div className="sample-grid">
           {samples.map((s, idx) => (
             <button
@@ -169,7 +222,7 @@ export default function Dashboard({ onOpenProfile }) {
               onClick={() => runPrediction(idx)}
             >
               {s.true_label}
-              <span className="subj">Subject {s.subject}</span>
+              <span className="subj">Participant {s.subject}</span>
             </button>
           ))}
         </div>
@@ -178,11 +231,16 @@ export default function Dashboard({ onOpenProfile }) {
       <div className="chart-panel">
         <div className="chart-header">
           <h2>Prediction history (this session)</h2>
-          <button type="button" className="reset-btn" onClick={resetHistory} disabled={history.length === 0}>
-            Reset
-          </button>
+          <div className="chart-header-buttons">
+            <button type="button" className="reset-btn" onClick={undoLast} disabled={history.length === 0}>
+              Undo last
+            </button>
+            <button type="button" className="reset-btn" onClick={resetHistory} disabled={history.length === 0}>
+              Reset
+            </button>
+          </div>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={220}>
           <LineChart data={history}>
             <CartesianGrid stroke="#1f2b28" strokeDasharray="3 3" />
             <XAxis dataKey="time" stroke="#7a938c" fontSize={11} tickLine={false} />
@@ -192,10 +250,35 @@ export default function Dashboard({ onOpenProfile }) {
               contentStyle={{ background: '#0e1513', border: '1px solid #1f2b28', borderRadius: 4, fontFamily: 'JetBrains Mono', fontSize: 12 }}
               labelStyle={{ color: '#7a938c' }}
             />
-            <Line type="monotone" dataKey="stress_prob" stroke="#e0574e" strokeWidth={2} dot={{ r: 3 }} name="Stress probability" />
+            <Legend wrapperStyle={{ fontSize: 12, fontFamily: 'JetBrains Mono' }} />
+            <Line type="monotone" dataKey="baseline_prob" stroke="#4ec9a8" strokeWidth={2} dot={{ r: 3 }} name="Baseline" />
+            <Line type="monotone" dataKey="stress_prob" stroke="#e0574e" strokeWidth={2} dot={{ r: 3 }} name="Stress" />
+            <Line type="monotone" dataKey="amusement_prob" stroke="#8ab4f8" strokeWidth={2} dot={{ r: 3 }} name="Amusement" />
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {insights && (
+        <div className="chart-panel">
+          <h2>Model insights — which sensors drive predictions</h2>
+          <p className="insight-note">
+            Computed from the deployed XGBoost model's actual feature importance
+            (src/feature_importance.py), not a general assumption about wearable sensors.
+          </p>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={insights.by_sensor} margin={{ left: 10, right: 20 }}>
+              <CartesianGrid stroke="#1f2b28" strokeDasharray="3 3" />
+              <XAxis dataKey="sensor" stroke="#7a938c" fontSize={12} tickLine={false} />
+              <YAxis stroke="#7a938c" fontSize={11} tickLine={false} unit="%" />
+              <Tooltip
+                formatter={(v) => `${v.toFixed(1)}%`}
+                contentStyle={{ background: '#0e1513', border: '1px solid #1f2b28', borderRadius: 4, fontFamily: 'JetBrains Mono', fontSize: 12 }}
+              />
+              <Bar dataKey="importance_pct" fill="#4ec9a8" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       <p className="footer-note">
         Research prototype — not a diagnostic tool. Model: XGBoost, 0.785 LOSO accuracy.<br />

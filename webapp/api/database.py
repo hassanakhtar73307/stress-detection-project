@@ -67,3 +67,13 @@ def update_user_profile(user_id, name, age, occupation):
     )
     conn.commit()
     conn.close()
+
+
+def update_password_by_email(email, new_password_hash):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE users SET password_hash = ? WHERE email = ?",
+        (new_password_hash, email),
+    )
+    conn.commit()
+    conn.close()

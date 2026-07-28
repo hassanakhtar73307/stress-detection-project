@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
 
-SECRET_KEY = "stress-detection-project-dev-secret-change-in-production"
+SECRET_KEY = os.environ.get("SECRET_KEY", "stress-detection-project-dev-secret-change-in-production")
 TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24  # 24 hours
 RESET_TOKEN_MAX_AGE_SECONDS = 60 * 30  # 30 minutes, shorter-lived than login tokens
 
@@ -71,18 +71,13 @@ def verify_reset_token(token):
         raise ValueError("Invalid or tampered reset link")
 
 
-def send_reset_email(to_email, reset_token):
-    """Sends a real email if SMTP is configured; otherwise prints the reset
-    token to the Flask console so the developer/tester can use it directly."""
-    body = (
-        f"A password reset was requested for {to_email}.\n\n"
-        f"Your reset code is:\n\n{reset_token}\n\n"
-        f"This code expires in 30 minutes. If you did not request this, ignore this email."
-    )
-
+def send_email(to_email, subject, body):
+    """Sends a real email if SMTP is configured; otherwise prints the message
+    to the Flask console. Returns True if actually emailed, False if it fell
+    back to console output."""
     if SMTP_HOST and SMTP_USER and SMTP_PASS:
         msg = MIMEText(body)
-        msg["Subject"] = "Stress Monitor -- Password Reset"
+        msg["Subject"] = subject
         msg["From"] = FROM_EMAIL
         msg["To"] = to_email
         try:
@@ -90,18 +85,47 @@ def send_reset_email(to_email, reset_token):
                 server.starttls()
                 server.login(SMTP_USER, SMTP_PASS)
                 server.send_message(msg)
-            print(f"[auth] Password reset email sent to {to_email}")
+            print(f"[auth] Email sent to {to_email}: {subject}")
             return True
         except Exception as e:
             print(f"[auth] Failed to send email ({e}); falling back to console output")
 
-    # Fallback: no SMTP configured, or sending failed -- print to console.
     print("\n" + "=" * 60)
-    print("PASSWORD RESET (no SMTP configured -- shown here instead of emailed)")
+    print(f"EMAIL (no SMTP configured or send failed -- shown here instead)")
     print(f"To: {to_email}")
-    print(f"Reset code: {reset_token}")
+    print(f"Subject: {subject}")
+    print(body)
     print("=" * 60 + "\n")
     return False
+
+
+def send_reset_email(to_email, reset_token):
+    body = (
+        f"A password reset was requested for {to_email}.\n\n"
+        f"Your reset code is:\n\n{reset_token}\n\n"
+        f"This code expires in 30 minutes. If you did not request this, ignore this email."
+    )
+    return send_email(to_email, "Stress Monitor -- Password Reset", body)
+
+
+def send_welcome_email(to_email, name):
+    body = (
+        f"Hi {name},\n\n"
+        f"Your Stress Monitor account has been created successfully with this email address.\n\n"
+        f"You can now log in and start using the dashboard."
+    )
+    return send_email(to_email, "Welcome to Stress Monitor", body)
+
+
+def send_login_notification_email(to_email, name):
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    body = (
+        f"Hi {name},\n\n"
+        f"A new login to your Stress Monitor account was detected at {timestamp}.\n\n"
+        f"If this wasn't you, consider resetting your password."
+    )
+    return send_email(to_email, "Stress Monitor -- New login", body)
 
 
 def login_required(f):

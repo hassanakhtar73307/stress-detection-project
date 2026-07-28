@@ -7,8 +7,10 @@ import {
 import samples from './sample_windows.json';
 import { useAuth } from './AuthContext';
 
-const API_URL = 'http://127.0.0.1:5000/predict';
-const INSIGHTS_URL = 'http://127.0.0.1:5000/model-insights';
+import { API_BASE } from './api';
+
+const API_URL = `${API_BASE}/predict`;
+const INSIGHTS_URL = `${API_BASE}/model-insights`;
 
 const LEVEL_COLORS = {
   Baseline: '#4ec9a8',

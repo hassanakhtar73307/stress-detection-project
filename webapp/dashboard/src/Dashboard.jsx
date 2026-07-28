@@ -72,6 +72,7 @@ export default function Dashboard({ onOpenProfile }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [showInfo, setShowInfo] = useState(false);
   const levelColor = result ? LEVEL_COLORS[result.predicted_label] : '#4ec9a8';
   const levelLabel = result ? LEVEL_LABELS[result.predicted_label] : '—';
 
@@ -84,10 +85,46 @@ export default function Dashboard({ onOpenProfile }) {
             <span className="status-dot" style={{ background: levelColor, boxShadow: `0 0 6px ${levelColor}` }} />
             {loading ? 'READING...' : 'CONNECTED'}
           </div>
+          <button type="button" className="link-btn" onClick={() => setShowInfo((v) => !v)}>
+            {showInfo ? 'Hide info' : 'How this works'}
+          </button>
           <button type="button" className="link-btn" onClick={onOpenProfile}>{user?.name || 'Profile'}</button>
           <button type="button" className="link-btn danger" onClick={logout}>Log out</button>
         </div>
       </div>
+
+      {showInfo && (
+        <div className="info-panel">
+          <h2>How this works</h2>
+          <ol>
+            <li>
+              <strong>Real sensor recordings, not live sensors.</strong> Each button below is one
+              real, pre-recorded window of chest-worn sensor data (ECG, EDA, EMG, respiration,
+              temperature) from the WESAD dataset — not a live device on you right now.
+            </li>
+            <li>
+              <strong>45 numeric features per window.</strong> Each window is summarised into
+              45 statistics (mean, variability, frequency content, etc.) across the five sensors.
+            </li>
+            <li>
+              <strong>A trained XGBoost model classifies it.</strong> Clicking a button sends
+              those 45 numbers to this project's Flask API, which loads the trained model
+              (0.785 mean accuracy under subject-independent LOSO cross-validation) and returns
+              a prediction with a confidence score.
+            </li>
+            <li>
+              <strong>"True label" is the real answer.</strong> Shown alongside the prediction so
+              you can verify whether the model got it right for that specific window.
+            </li>
+            <li>
+              <strong>Scope.</strong> This demonstrates a complete, working pipeline from
+              physiological signal to a served prediction — it is a research prototype, not a
+              clinical or diagnostic tool, and is not currently connected to a live wearable device.
+            </li>
+          </ol>
+        </div>
+      )}
+
 
       <div className="reading-panel" style={{ '--level-color': levelColor }}>
         <p className="reading-label">Current stress level</p>

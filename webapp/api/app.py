@@ -61,11 +61,29 @@ def is_admin_user(user):
 
 # Resolve paths relative to project root regardless of launch directory.
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-MODEL_PATH = os.path.join(BASE_DIR, "models", "xgb_final.joblib")
-FEATURES_PATH = os.path.join(BASE_DIR, "data", "processed", "features_traditional.csv")
+MODEL_PATHS = {
+    "xgboost": os.path.join(BASE_DIR, "models", "xgb_final.joblib"),
+    "random_forest": os.path.join(BASE_DIR, "models", "rf_final.joblib"),
+}
 
-print("Loading model and feature schema...")
-model = joblib.load(MODEL_PATH)
+DEFAULT_MODEL_NAME = "xgboost"
+
+FEATURES_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "processed",
+    "features_traditional.csv",
+)
+
+print("Loading traditional models and feature schema...")
+
+traditional_models = {
+    model_name: joblib.load(model_path)
+    for model_name, model_path in MODEL_PATHS.items()
+}
+
+# Keep the existing prediction route working while we update it.
+model = traditional_models[DEFAULT_MODEL_NAME]
 feature_cols = [
     column
     for column in pd.read_csv(FEATURES_PATH, nrows=1).columns
@@ -408,43 +426,106 @@ def model_insights():
             "top_features": top_features.to_dict(orient="records"),
         }
     )
-
-
 @app.route("/predict", methods=["POST"])
 @auth.login_required
 def predict():
     body = request.get_json(silent=True)
+
     if body is None or "features" not in body:
-        return jsonify({"error": "Request body must be JSON with a 'features' key"}), 400
+        return (
+            jsonify(
+                {
+                    "error": (
+                        "Request body must be JSON with a 'features' key"
+                    )
+                }
+            ),
+            400,
+        )
 
     features = body["features"]
 
+    requested_model = (
+        body.get("model_name") or DEFAULT_MODEL_NAME
+    ).strip().lower()
+
+    if requested_model not in traditional_models:
+        return (
+            jsonify(
+                {
+                    "error": "Unsupported model",
+                    "available_models": list(traditional_models.keys()),
+                }
+            ),
+            400,
+        )
+
+    selected_model = traditional_models[requested_model]
+
     if isinstance(features, dict):
-        missing = [column for column in feature_cols if column not in features]
+        missing = [
+            column
+            for column in feature_cols
+            if column not in features
+        ]
+
         if missing:
             suffix = "..." if len(missing) > 5 else ""
-            return jsonify({"error": f"Missing features: {missing[:5]}{suffix}"}), 400
-        x = np.array([[features[column] for column in feature_cols]])
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            f"Missing features: {missing[:5]}{suffix}"
+                        )
+                    }
+                ),
+                400,
+            )
+
+        x = np.array(
+            [[features[column] for column in feature_cols]]
+        )
+
     elif isinstance(features, list):
         if len(features) != len(feature_cols):
             return (
                 jsonify(
                     {
                         "error": (
-                            f"Expected {len(feature_cols)} features, got {len(features)}"
+                            f"Expected {len(feature_cols)} features, "
+                            f"got {len(features)}"
                         )
                     }
                 ),
                 400,
             )
-        x = np.array([features])
-    else:
-        return jsonify({"error": "'features' must be a list or a dictionary"}), 400
 
-    pred_class = int(model.predict(x)[0])
-    proba = model.predict_proba(x)[0].tolist()
+        x = np.array([features])
+
+    else:
+        return (
+            jsonify(
+                {
+                    "error": (
+                        "'features' must be a list or a dictionary"
+                    )
+                }
+            ),
+            400,
+        )
+
+    raw_pred_class = int(selected_model.predict(x)[0])
+    pred_class = (
+        raw_pred_class - 1
+        if requested_model == "random_forest"
+        else raw_pred_class
+    )
+
+    proba = selected_model.predict_proba(x)[0].tolist()
+
     predicted_label = LABEL_NAMES[pred_class]
     confidence = round(max(proba), 4)
+
     probabilities = {
         LABEL_NAMES[index]: round(probability, 4)
         for index, probability in enumerate(proba)
@@ -452,9 +533,14 @@ def predict():
 
     prediction_id = database.create_prediction(
         user_id=request.user_id,
+        model_name=requested_model,
         sample_id=(body.get("sample_id") or "")[:80] or None,
-        source_participant_id=(body.get("participant_id") or "")[:30] or None,
-        expected_label=(body.get("expected_label") or "")[:40] or None,
+        source_participant_id=(
+            body.get("participant_id") or ""
+        )[:30] or None,
+        expected_label=(
+            body.get("expected_label") or ""
+        )[:40] or None,
         predicted_label=predicted_label,
         confidence=confidence,
         probabilities=probabilities,
@@ -463,13 +549,12 @@ def predict():
     return jsonify(
         {
             "prediction_id": prediction_id,
+            "model_name": requested_model,
             "predicted_class": pred_class,
             "predicted_label": predicted_label,
             "confidence": confidence,
             "probabilities": probabilities,
         }
     )
-
-
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

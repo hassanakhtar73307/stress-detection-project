@@ -2,7 +2,7 @@ Flask==2.2.3
 Werkzeug==2.2.3
 flask-cors==6.0.5
 joblib==1.2.0
-numpy==1.23.5
+numpy==1.26.4
 pandas==2.3.3
 scikit-learn==1.6.1
 xgboost==2.1.4

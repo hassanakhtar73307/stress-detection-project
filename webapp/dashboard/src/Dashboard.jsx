@@ -262,6 +262,7 @@ function ProcessStep({ icon, title, subtitle, isLast }) {
 export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
   const { user, authHeader, logout } = useAuth();
   const [selectedIdx, setSelectedIdx] = useState(null);
+  const [selectedModel, setSelectedModel] = useState('xgboost');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -307,6 +308,7 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
         API_URL,
         {
           features: sample.features,
+          model_name: selectedModel,
           sample_id: `scenario_${String(idx + 1).padStart(2, '0')}`,
           participant_id: sample.subject,
           expected_label: sample.true_label,
@@ -460,6 +462,49 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
           </div>
         </section>
       )}
+      <section
+  className="model-selector-panel"
+  aria-label="Prediction model selection"
+>
+  <div className="model-selector-copy">
+    <span className="eyebrow">Prediction model</span>
+    <h2>Choose a trained model</h2>
+    <p>
+      XGBoost is the recommended model. Random Forest is available
+      for alternative predictions.
+    </p>
+  </div>
+
+  <div className="model-selector-actions">
+    <button
+      type="button"
+      className={`model-option ${
+        selectedModel === 'xgboost' ? 'active' : ''
+      }`}
+      onClick={() => {
+      setSelectedModel('xgboost');
+      resetHistory();
+  }}
+    >
+      <strong>XGBoost</strong>
+      <span>Recommended · Accuracy 79.9%</span>
+    </button>
+
+    <button
+      type="button"
+      className={`model-option ${
+        selectedModel === 'random_forest' ? 'active' : ''
+      }`}
+      onClick={() => {
+      setSelectedModel('random_forest');
+      resetHistory();
+  }}
+    >
+      <strong>Random Forest</strong>
+      <span>Alternative · Accuracy 76.8%</span>
+    </button>
+  </div>
+</section>
 
       <section className="classification-panel" style={{ '--active-color': levelColor }}>
         <div className="classification-summary">

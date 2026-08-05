@@ -97,6 +97,7 @@ predictions = Table(
     Column("sample_id", String(80)),
     Column("source_participant_id", String(30)),
     Column("expected_label", String(40)),
+    Column("model_name", String(40), nullable=False, server_default=text("'xgboost'")),
     Column("predicted_label", String(40), nullable=False),
     Column("confidence", Float, nullable=False),
     Column("probabilities", JSON, nullable=False),
@@ -137,10 +138,31 @@ def _ensure_existing_user_columns() -> None:
             if column_name not in existing:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
 
+def _ensure_existing_prediction_columns() -> None:
+    """Add model information to older prediction tables safely."""
+    inspector = inspect(engine)
 
+    if "predictions" not in inspector.get_table_names():
+        return
+
+    existing = {
+        column["name"]
+        for column in inspector.get_columns("predictions")
+    }
+
+    if "model_name" not in existing:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE predictions "
+                    "ADD COLUMN model_name VARCHAR(40) "
+                    "NOT NULL DEFAULT 'xgboost'"
+                )
+            )
 def init_db() -> None:
     metadata.create_all(engine)
     _ensure_existing_user_columns()
+    _ensure_existing_prediction_columns()
 
 
 def database_status() -> dict[str, str]:
@@ -239,6 +261,7 @@ def create_prediction(
     predicted_label,
     confidence,
     probabilities,
+    model_name="xgboost",
     sample_id=None,
     source_participant_id=None,
     expected_label=None,
@@ -250,6 +273,7 @@ def create_prediction(
                 sample_id=sample_id,
                 source_participant_id=source_participant_id,
                 expected_label=expected_label,
+                model_name=model_name,
                 predicted_label=predicted_label,
                 confidence=float(confidence),
                 probabilities=probabilities,

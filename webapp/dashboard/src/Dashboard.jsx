@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import './Dashboard.css';
 import axios from 'axios';
 import {
   Bar,
@@ -258,7 +259,7 @@ function ProcessStep({ icon, title, subtitle, isLast }) {
   );
 }
 
-export default function Dashboard({ onOpenProfile }) {
+export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
   const { user, authHeader, logout } = useAuth();
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [result, setResult] = useState(null);
@@ -304,7 +305,12 @@ export default function Dashboard({ onOpenProfile }) {
     try {
       const res = await axios.post(
         API_URL,
-        { features: sample.features },
+        {
+          features: sample.features,
+          sample_id: `scenario_${String(idx + 1).padStart(2, '0')}`,
+          participant_id: sample.subject,
+          expected_label: sample.true_label,
+        },
         { headers: authHeader, timeout: 60000 },
       );
 
@@ -340,11 +346,16 @@ export default function Dashboard({ onOpenProfile }) {
         ]);
       }
     } catch (requestError) {
+      if (requestError.response?.status === 401) {
+        // The saved token belongs to another backend, has expired, or the local
+        // SQLite user no longer exists. Clear it and return to the login page.
+        logout();
+        return;
+      }
+
       setApiStatus('offline');
 
-      if (requestError.response?.status === 401) {
-        setError('Your session has expired. Please log out and sign in again.');
-      } else if (requestError.code === 'ECONNABORTED') {
+      if (requestError.code === 'ECONNABORTED') {
         setError('The prediction service is taking longer than expected. It may be waking up—please try again in a moment.');
       } else {
         setError(
@@ -413,6 +424,11 @@ export default function Dashboard({ onOpenProfile }) {
           <button type="button" className="header-link" onClick={() => setShowInfo((value) => !value)}>
             {showInfo ? 'Hide explanation' : 'About the analysis'}
           </button>
+          {user?.is_admin && (
+            <button type="button" className="header-link admin-link" onClick={onOpenAdmin}>
+              User analytics
+            </button>
+          )}
           <button type="button" className="header-link" onClick={onOpenProfile}>
             {user?.name || 'Profile'}
           </button>

@@ -4,3 +4,12 @@ venv/
 node_modules/
 webapp/api/users.db
 __pycache__/
+# Local secrets and generated files
+.env
+.env.*
+!.env.example
+.venv/
+webapp/api/users.db
+webapp/dashboard/.env.local
+webapp/dashboard/node_modules/
+webapp/dashboard/dist/

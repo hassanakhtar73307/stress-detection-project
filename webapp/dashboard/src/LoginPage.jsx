@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import AuthLayout from './AuthLayout';
+import PasswordField from './PasswordField';
 
 export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
   const { login } = useAuth();
@@ -8,41 +10,65 @@ export default function LoginPage({ onSwitchToRegister, onForgotPassword }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
     setLoading(true);
     try {
       await login({ email, password });
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'We could not sign you in. Check your details and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-panel">
-      <h1 className="auth-title">Stress Monitor // Sign in</h1>
+    <AuthLayout
+      eyebrow="Secure account access"
+      title="Welcome back"
+      description="Sign in to continue to your stress classification dashboard."
+      footer={(
+        <p>
+          New to Stress Monitor?{' '}
+          <button type="button" className="text-action" onClick={onSwitchToRegister}>Create an account</button>
+        </p>
+      )}
+    >
       <form onSubmit={handleSubmit} className="auth-form">
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label className="field-group" htmlFor="login-email">
+          <span className="field-label">Email address</span>
+          <input
+            id="login-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
         </label>
-        <label>
-          Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        {error && <p className="auth-error">{error}</p>}
-        <button type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
+
+        <PasswordField
+          id="login-password"
+          label="Password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Enter your password"
+          autoComplete="current-password"
+        />
+
+        <div className="form-inline-actions">
+          <span className="secure-copy">Encrypted sign-in</span>
+          <button type="button" className="text-action" onClick={onForgotPassword}>Forgot password?</button>
+        </div>
+
+        {error && <p className="form-message error" role="alert">{error}</p>}
+
+        <button type="submit" className="primary-button" disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign in to dashboard'}
+        </button>
       </form>
-      <p className="auth-switch">
-        <button type="button" className="link-btn" onClick={onForgotPassword}>Forgot password?</button>
-      </p>
-      <p className="auth-switch">
-        Don't have an account?{' '}
-        <button type="button" className="link-btn" onClick={onSwitchToRegister}>Create one</button>
-      </p>
-    </div>
+    </AuthLayout>
   );
 }

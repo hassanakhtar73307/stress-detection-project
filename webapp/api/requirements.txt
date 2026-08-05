@@ -7,3 +7,6 @@ pandas==2.3.3
 scikit-learn==1.6.1
 xgboost==2.1.4
 gunicorn==21.2.0
+SQLAlchemy==2.0.43
+psycopg2-binary==2.9.10
+greenlet==3.2.3

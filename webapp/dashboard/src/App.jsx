@@ -8,13 +8,14 @@ import ResetPasswordPage from './ResetPasswordPage';
 import ProfilePage from './ProfilePage';
 import Dashboard from './Dashboard';
 import AdminPage from './AdminPage';
+import ModelComparisonPage from './ModelComparisonPage';
 
 function AppShell() {
   const { token, authReady, user } = useAuth();
   // 'login' | 'register' | 'forgot' | 'reset'
   const [authView, setAuthView] = useState('login');
-  const [page, setPage] = useState('dashboard'); // 'dashboard' | 'profile' | 'admin'
-
+  const [page, setPage] = useState('dashboard');
+// 'dashboard' | 'profile' | 'admin' | 'comparison'
   if (!authReady) {
     return (
       <div className="session-check-page">
@@ -50,7 +51,13 @@ function AppShell() {
       />
     );
   }
-
+  if (page === 'comparison') {
+  return (
+    <ModelComparisonPage
+      onBack={() => setPage('dashboard')}
+    />
+  );
+}
   if (page === 'profile') {
     return <ProfilePage onBack={() => setPage('dashboard')} />;
   }
@@ -60,11 +67,12 @@ function AppShell() {
   }
 
   return (
-    <Dashboard
-      onOpenProfile={() => setPage('profile')}
-      onOpenAdmin={() => setPage('admin')}
-    />
-  );
+  <Dashboard
+    onOpenProfile={() => setPage('profile')}
+    onOpenAdmin={() => setPage('admin')}
+    onOpenComparison={() => setPage('comparison')}
+  />
+);
 }
 
 export default function App() {

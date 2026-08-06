@@ -1,5 +1,6 @@
 """
-Flask API serving the trained XGBoost stress-detection model and user accounts.
+Flask API serving the trained XGBoost and Random Forest stress-detection
+models, user accounts, model insights, and prediction history.
 
 Run from the project root:
     python webapp\api\app.py
@@ -68,6 +69,22 @@ MODEL_PATHS = {
 
 DEFAULT_MODEL_NAME = "xgboost"
 
+MODEL_DISPLAY_NAMES = {
+    "xgboost": "XGBoost",
+    "random_forest": "Random Forest",
+}
+
+MODEL_INSIGHT_FILES = {
+    "xgboost": {
+        "sensor_file": "xgboost_feature_importance_by_sensor.csv",
+        "feature_file": "xgboost_feature_importance.csv",
+    },
+    "random_forest": {
+        "sensor_file": "random_forest_feature_importance_by_sensor.csv",
+        "feature_file": "random_forest_feature_importance.csv",
+    },
+}
+
 FEATURES_PATH = os.path.join(
     BASE_DIR,
     "data",
@@ -82,8 +99,6 @@ traditional_models = {
     for model_name, model_path in MODEL_PATHS.items()
 }
 
-# Keep the existing prediction route working while we update it.
-model = traditional_models[DEFAULT_MODEL_NAME]
 feature_cols = [
     column
     for column in pd.read_csv(FEATURES_PATH, nrows=1).columns
@@ -92,6 +107,23 @@ feature_cols = [
 print(f"  Loaded model. Expecting {len(feature_cols)} features.")
 
 LABEL_NAMES = {0: "Baseline", 1: "Stress", 2: "Amusement"}
+
+
+def normalize_model_class(model_name, raw_class):
+    """Convert a model-specific class value to the shared 0-2 label index."""
+    normalized_class = int(raw_class)
+
+    # Random Forest was trained on labels 1, 2, 3, while XGBoost was trained
+    # on remapped labels 0, 1, 2.
+    if model_name == "random_forest":
+        normalized_class -= 1
+
+    if normalized_class not in LABEL_NAMES:
+        raise ValueError(
+            f"Model '{model_name}' returned unsupported class {raw_class}"
+        )
+
+    return normalized_class
 
 
 def serialize_user(user):
@@ -152,17 +184,23 @@ def service_info():
             "health_check": "/health",
             "n_features_expected": len(feature_cols),
             "database": database.database_status(),
+            "default_model": DEFAULT_MODEL_NAME,
+            "available_models": list(traditional_models.keys()),
         }
     )
 
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({
-        "status": "ok",
-        "n_features_expected": len(feature_cols),
-        "database": database.database_status(),
-    })
+    return jsonify(
+        {
+            "status": "ok",
+            "n_features_expected": len(feature_cols),
+            "database": database.database_status(),
+            "default_model": DEFAULT_MODEL_NAME,
+            "available_models": list(traditional_models.keys()),
+        }
+    )
 
 
 @app.route("/register", methods=["POST"])
@@ -400,32 +438,82 @@ def admin_predictions():
 
 @app.route("/model-insights", methods=["GET"])
 def model_insights():
-    """Serve precomputed model feature-importance results."""
-    by_sensor_path = os.path.join(BASE_DIR, "models", "feature_importance_by_sensor.csv")
-    top_features_path = os.path.join(BASE_DIR, "models", "feature_importance.csv")
+    """Return global feature-importance data for the selected model."""
+    requested_model = (
+        request.args.get("model_name") or DEFAULT_MODEL_NAME
+    ).strip().lower()
 
-    if not os.path.exists(by_sensor_path) or not os.path.exists(top_features_path):
+    if requested_model not in MODEL_INSIGHT_FILES:
+        return (
+            jsonify(
+                {
+                    "error": "Unsupported model",
+                    "available_models": list(MODEL_INSIGHT_FILES.keys()),
+                }
+            ),
+            400,
+        )
+
+    config = MODEL_INSIGHT_FILES[requested_model]
+
+    by_sensor_path = os.path.join(
+        BASE_DIR,
+        "models",
+        config["sensor_file"],
+    )
+    top_features_path = os.path.join(
+        BASE_DIR,
+        "models",
+        config["feature_file"],
+    )
+
+    if not os.path.exists(by_sensor_path) or not os.path.exists(
+        top_features_path
+    ):
         return (
             jsonify(
                 {
                     "available": False,
-                    "message": "Run src/feature_importance.py first to generate this data.",
+                    "model_name": requested_model,
+                    "display_name": MODEL_DISPLAY_NAMES[requested_model],
+                    "message": (
+                        "Run src/feature_importance.py to generate "
+                        "the model insight data."
+                    ),
                 }
             ),
             404,
         )
 
     by_sensor = pd.read_csv(by_sensor_path)
-    by_sensor.columns = ["sensor", "importance_pct"]
     top_features = pd.read_csv(top_features_path).head(10)
+
+    required_sensor_columns = {"sensor", "importance_pct"}
+    if not required_sensor_columns.issubset(by_sensor.columns):
+        return (
+            jsonify(
+                {
+                    "available": False,
+                    "model_name": requested_model,
+                    "error": (
+                        "The sensor-importance file has an invalid schema."
+                    ),
+                }
+            ),
+            500,
+        )
 
     return jsonify(
         {
             "available": True,
+            "model_name": requested_model,
+            "display_name": MODEL_DISPLAY_NAMES[requested_model],
             "by_sensor": by_sensor.to_dict(orient="records"),
             "top_features": top_features.to_dict(orient="records"),
         }
     )
+
+
 @app.route("/predict", methods=["POST"])
 @auth.login_required
 def predict():
@@ -514,22 +602,39 @@ def predict():
             400,
         )
 
-    raw_pred_class = int(selected_model.predict(x)[0])
-    pred_class = (
-        raw_pred_class - 1
-        if requested_model == "random_forest"
-        else raw_pred_class
+    raw_pred_class = selected_model.predict(x)[0]
+    pred_class = normalize_model_class(
+        requested_model,
+        raw_pred_class,
     )
 
-    proba = selected_model.predict_proba(x)[0].tolist()
-
-    predicted_label = LABEL_NAMES[pred_class]
-    confidence = round(max(proba), 4)
+    raw_probabilities = selected_model.predict_proba(x)[0]
+    raw_classes = getattr(
+        selected_model,
+        "classes_",
+        np.arange(len(raw_probabilities)),
+    )
 
     probabilities = {
-        LABEL_NAMES[index]: round(probability, 4)
-        for index, probability in enumerate(proba)
+        label_name: 0.0
+        for label_name in LABEL_NAMES.values()
     }
+
+    for raw_class, probability in zip(
+        raw_classes,
+        raw_probabilities,
+    ):
+        normalized_class = normalize_model_class(
+            requested_model,
+            raw_class,
+        )
+        probabilities[LABEL_NAMES[normalized_class]] = round(
+            float(probability),
+            4,
+        )
+
+    predicted_label = LABEL_NAMES[pred_class]
+    confidence = round(float(max(raw_probabilities)), 4)
 
     prediction_id = database.create_prediction(
         user_id=request.user_id,
@@ -550,6 +655,7 @@ def predict():
         {
             "prediction_id": prediction_id,
             "model_name": requested_model,
+            "model_display_name": MODEL_DISPLAY_NAMES[requested_model],
             "predicted_class": pred_class,
             "predicted_label": predicted_label,
             "confidence": confidence,

@@ -22,6 +22,24 @@ import { API_BASE } from './api';
 const API_URL = `${API_BASE}/predict`;
 const HEALTH_URL = `${API_BASE}/health`;
 const INSIGHTS_URL = `${API_BASE}/model-insights`;
+const MODEL_META = {
+  xgboost: {
+    displayName: 'XGBoost',
+    status: 'Recommended',
+    accuracy: 79.9,
+    precision: 68.2,
+    recall: 71.3,
+    f1: 67.7,
+  },
+  random_forest: {
+    displayName: 'Random Forest',
+    status: 'Alternative',
+    accuracy: 76.8,
+    precision: 64.5,
+    recall: 66.2,
+    f1: 63.1,
+  },
+};
 
 const STATE_META = {
   Baseline: {
@@ -259,7 +277,11 @@ function ProcessStep({ icon, title, subtitle, isLast }) {
   );
 }
 
-export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
+export default function Dashboard({
+  onOpenProfile,
+  onOpenAdmin,
+  onOpenComparison,
+}) {
   const { user, authHeader, logout } = useAuth();
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [selectedModel, setSelectedModel] = useState('xgboost');
@@ -270,31 +292,55 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
   const [showInfo, setShowInfo] = useState(false);
   const [insights, setInsights] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking');
-  const tickRef = useRef(0);
+const tickRef = useRef(0);
 
-  useEffect(() => {
-    let active = true;
+useEffect(() => {
+  let active = true;
 
-    axios.get(HEALTH_URL, { timeout: 45000 })
-      .then(() => {
-        if (active) setApiStatus('online');
-      })
-      .catch(() => {
-        if (active) setApiStatus('offline');
-      });
+  axios.get(HEALTH_URL, { timeout: 45000 })
+    .then(() => {
+      if (active) {
+        setApiStatus('online');
+      }
+    })
+    .catch(() => {
+      if (active) {
+        setApiStatus('offline');
+      }
+    });
 
-    axios.get(INSIGHTS_URL, { timeout: 45000 })
-      .then((res) => {
-        if (active && res.data.available) setInsights(res.data);
-      })
-      .catch(() => {
-        // Model insights are optional.
-      });
+  return () => {
+    active = false;
+  };
+}, []);
 
-    return () => {
-      active = false;
-    };
-  }, []);
+useEffect(() => {
+  let active = true;
+
+  setInsights(null);
+
+  axios.get(INSIGHTS_URL, {
+    params: {
+      model_name: selectedModel,
+    },
+    timeout: 45000,
+  })
+    .then((res) => {
+      if (active && res.data.available) {
+        setInsights(res.data);
+      }
+    })
+    .catch(() => {
+      if (active) {
+        setInsights(null);
+      }
+    });
+
+  return () => {
+    active = false;
+  };
+}, [selectedModel]);
+
 
   const runPrediction = async (idx, recordHistory = true) => {
     setSelectedIdx(idx);
@@ -400,6 +446,7 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
     : STATE_META.Baseline;
 
   const levelColor = predictedMeta.color;
+  const activeModelMeta = MODEL_META[selectedModel];
 
   const statusCopy = loading
     ? 'ANALYZING...'
@@ -431,6 +478,9 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
               User analytics
             </button>
           )}
+          <button type="button" className="header-link" onClick={onOpenComparison}>
+            Model comparison
+          </button>
           <button type="button" className="header-link" onClick={onOpenProfile}>
             {user?.name || 'Profile'}
           </button>
@@ -454,7 +504,8 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
               The window is represented by 45 physiological features from ECG, EDA, EMG, respiration and temperature.
             </p>
             <p>
-              The deployed XGBoost model classifies the pattern as calm, stress or positive emotion.
+              The selected {activeModelMeta.displayName} model classifies the
+              pattern as calm, stress or positive emotion.
             </p>
             <p>
               This is an academic research prototype and is not a medical or diagnostic system.
@@ -470,8 +521,9 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
     <span className="eyebrow">Prediction model</span>
     <h2>Choose a trained model</h2>
     <p>
-      XGBoost is the recommended model. Random Forest is available
-      for alternative predictions.
+      {activeModelMeta.displayName} is currently selected. XGBoost is the
+      recommended model, while Random Forest is available for alternative
+      predictions.
     </p>
   </div>
 
@@ -580,7 +632,7 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
           <div className="process-steps">
             <ProcessStep icon="pulse" title="Physiological" subtitle="data" />
             <ProcessStep icon="analysis" title="Feature" subtitle="analysis" />
-            <ProcessStep icon="chip" title="AI model" subtitle="XGBoost" />
+            <ProcessStep icon="chip" title="AI model" subtitle={activeModelMeta.displayName}/>
             <ProcessStep icon="target" title="State" subtitle="prediction" isLast />
           </div>
 
@@ -714,7 +766,11 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
           <div className="section-heading-row compact">
             <div>
               <span className="eyebrow">Model insight</span>
-              <p>Relative contribution of each sensor group in the deployed XGBoost model.</p>
+              <p>
+                Global contribution of each sensor group across the trained{' '}
+                {activeModelMeta.displayName} model. This does not explain an
+                individual prediction.
+              </p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={210}>
@@ -743,8 +799,11 @@ export default function Dashboard({ onOpenProfile, onOpenAdmin }) {
       )}
 
       <footer className="dashboard-footer">
-        Research prototype—not a diagnostic tool. XGBoost model · 0.785 LOSO accuracy · mean inference latency 0.67 ms.
-      </footer>
+  Research prototype—not a diagnostic tool.{' '}
+  {activeModelMeta.displayName} model · accuracy{' '}
+  {activeModelMeta.accuracy.toFixed(1)}% · macro F1{' '}
+  {activeModelMeta.f1.toFixed(1)}%.
+</footer>
     </div>
   );
 }

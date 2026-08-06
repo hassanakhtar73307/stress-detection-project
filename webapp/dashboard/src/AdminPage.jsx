@@ -202,13 +202,29 @@ export default function AdminPage({ onBack }) {
             </div>
             <div className="admin-table-scroll">
               <table>
-                <thead><tr><th>User</th><th>Scenario</th><th>WESAD ID</th><th>Expected</th><th>Predicted</th><th>Confidence</th><th>Time</th></tr></thead>
+                <thead>
+  <tr>
+    <th>User</th>
+    <th>Scenario</th>
+    <th>WESAD ID</th>
+    <th>Model</th>
+    <th>Expected</th>
+    <th>Predicted</th>
+    <th>Confidence</th>
+    <th>Time</th>
+  </tr>
+</thead>
                 <tbody>
                   {(overview.recent_predictions || []).map((record) => (
                     <tr key={record.id}>
                       <td><strong>{record.user_name}</strong><span>{record.user_email}</span></td>
                       <td>{record.sample_id || '—'}</td>
                       <td>{record.source_participant_id || '—'}</td>
+                      <td>
+  {record.model_name === 'random_forest'
+    ? 'Random Forest'
+    : 'XGBoost'}
+</td>
                       <td>{record.expected_label || '—'}</td>
                       <td>{record.predicted_label}</td>
                       <td>{Math.round((record.confidence || 0) * 100)}%</td>
@@ -216,7 +232,9 @@ export default function AdminPage({ onBack }) {
                     </tr>
                   ))}
                   {!(overview.recent_predictions || []).length && (
-                    <tr><td colSpan="7">No predictions have been recorded yet.</td></tr>
+                    <tr>
+  <td colSpan="8">No predictions have been recorded yet.</td>
+</tr>
                   )}
                 </tbody>
               </table>

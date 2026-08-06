@@ -98,6 +98,7 @@ predictions = Table(
     Column("source_participant_id", String(30)),
     Column("expected_label", String(40)),
     Column("model_name", String(40), nullable=False, server_default=text("'xgboost'")),
+    Column("comparison_id", String(80), index=True),
     Column("predicted_label", String(40), nullable=False),
     Column("confidence", Float, nullable=False),
     Column("probabilities", JSON, nullable=False),
@@ -139,7 +140,7 @@ def _ensure_existing_user_columns() -> None:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {definition}"))
 
 def _ensure_existing_prediction_columns() -> None:
-    """Add model information to older prediction tables safely."""
+    """Add model and comparison information to older prediction tables safely."""
     inspector = inspect(engine)
 
     if "predictions" not in inspector.get_table_names():
@@ -159,6 +160,25 @@ def _ensure_existing_prediction_columns() -> None:
                     "NOT NULL DEFAULT 'xgboost'"
                 )
             )
+
+    if "comparison_id" not in existing:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE predictions "
+                    "ADD COLUMN comparison_id VARCHAR(80)"
+                )
+            )
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS "
+                "ix_predictions_comparison_id "
+                "ON predictions (comparison_id)"
+            )
+        )
+        
 def init_db() -> None:
     metadata.create_all(engine)
     _ensure_existing_user_columns()
@@ -262,6 +282,7 @@ def create_prediction(
     confidence,
     probabilities,
     model_name="xgboost",
+    comparison_id=None,
     sample_id=None,
     source_participant_id=None,
     expected_label=None,
@@ -274,6 +295,7 @@ def create_prediction(
                 source_participant_id=source_participant_id,
                 expected_label=expected_label,
                 model_name=model_name,
+                comparison_id=comparison_id,
                 predicted_label=predicted_label,
                 confidence=float(confidence),
                 probabilities=probabilities,
@@ -281,8 +303,6 @@ def create_prediction(
             )
         )
         return result.inserted_primary_key[0]
-
-
 def _count(conn, statement) -> int:
     return int(conn.execute(statement).scalar_one() or 0)
 

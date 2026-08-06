@@ -639,6 +639,7 @@ def predict():
     prediction_id = database.create_prediction(
         user_id=request.user_id,
         model_name=requested_model,
+        comparison_id=(body.get("comparison_id") or "")[:80] or None,
         sample_id=(body.get("sample_id") or "")[:80] or None,
         source_participant_id=(
             body.get("participant_id") or ""

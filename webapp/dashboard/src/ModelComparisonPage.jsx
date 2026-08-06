@@ -70,6 +70,43 @@ const createComparisonSummary = (comparison) => {
   'Baseline',
   'Stress',
 ];
+const xgboostProcessingTime = Number(
+  xgboost.processing_time_ms,
+);
+
+const randomForestProcessingTime = Number(
+  randomForest.processing_time_ms,
+);
+
+const processingTimesAvailable =
+  Number.isFinite(xgboostProcessingTime) &&
+  Number.isFinite(randomForestProcessingTime);
+
+const processingTimeDifference =
+  processingTimesAvailable
+    ? Math.abs(
+        xgboostProcessingTime -
+          randomForestProcessingTime,
+      )
+    : null;
+
+let fasterModel = 'Not available';
+
+if (processingTimesAvailable) {
+  if (
+    xgboostProcessingTime <
+    randomForestProcessingTime
+  ) {
+    fasterModel = 'XGBoost';
+  } else if (
+    randomForestProcessingTime <
+    xgboostProcessingTime
+  ) {
+    fasterModel = 'Random Forest';
+  } else {
+    fasterModel = 'Tie';
+  }
+}
 
 const classProbabilityDifferences =
   classLabels.map((label) => {
@@ -112,7 +149,7 @@ if (
     return {
       label,
       xgboostProbability: xgboostPercentage,
-randomForestProbability: randomForestPercentage,
+      randomForestProbability: randomForestPercentage,
       difference,
       higherModel,
     };
@@ -172,7 +209,11 @@ randomForestProbability: randomForestPercentage,
     classProbabilityDifferences,
     xgboostPrediction: xgboost.predicted_label,
     randomForestPrediction:
-      randomForest.predicted_label,
+    randomForest.predicted_label,
+    xgboostProcessingTime,
+    randomForestProcessingTime,
+    processingTimeDifference,
+    fasterModel,
   };
 };
 
@@ -372,6 +413,42 @@ WESAD {sample.subject}
             </div>
           </div>
 <div className="comparison-summary-grid">
+    <div className="comparison-summary-item">
+  <span>Processing speed</span>
+
+  <strong>
+    {comparisonSummary.fasterModel ===
+    'Not available'
+      ? 'Not available'
+      : `${comparisonSummary.fasterModel} faster`}
+  </strong>
+
+  <p>
+    XGBoost:{' '}
+    {Number.isFinite(
+      comparisonSummary.xgboostProcessingTime,
+    )
+      ? comparisonSummary.xgboostProcessingTime.toFixed(
+          3,
+        )
+      : 'N/A'}
+    {' ms · '}
+    Random Forest:{' '}
+    {Number.isFinite(
+      comparisonSummary.randomForestProcessingTime,
+    )
+      ? comparisonSummary.randomForestProcessingTime.toFixed(
+          3,
+        )
+      : 'N/A'}
+    {' ms'}
+    {comparisonSummary.processingTimeDifference !==
+      null &&
+      ` · Difference: ${comparisonSummary.processingTimeDifference.toFixed(
+        3,
+      )} ms`}
+  </p>
+</div>
   <div className="comparison-summary-item">
     <span>Ground truth</span>
 
@@ -555,52 +632,56 @@ WESAD {sample.subject}
                 </div>
 
                 {result ? (
-                  <div className="comparison-prediction">
-                    <span>Prediction</span>
+  <div className="comparison-prediction">
+    <span>Prediction</span>
 
-                    <h3>
-                      {result.predicted_label}
-                    </h3>
+    <h3>
+      {result.predicted_label}
+    </h3>
 
-                    <p>
-                      Confidence:{' '}
-                      {(
-                        result.confidence * 100
-                      ).toFixed(1)}
-                      %
-                    </p>
+    <p>
+      Confidence:{' '}
+      {(result.confidence * 100).toFixed(1)}
+      %
+    </p>
 
-                    <div className="comparison-probabilities">
-                      {Object.entries(
-                        result.probabilities,
-                      ).map(
-                        ([
-                          label,
-                          probability,
-                        ]) => (
-                          <div key={label}>
-                            <span>
-                              {label}
-                            </span>
+    <p>
+      Processing time:{' '}
+      {Number.isFinite(
+        Number(result.processing_time_ms),
+      )
+        ? `${Number(
+            result.processing_time_ms,
+          ).toFixed(3)} ms`
+        : 'Not available'}
+    </p>
 
-                            <strong>
-                              {(
-                                probability *
-                                100
-                              ).toFixed(1)}
-                              %
-                            </strong>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="comparison-placeholder">
-                    Run the comparison to view
-                    this model’s prediction.
-                  </p>
-                )}
+    <div className="comparison-probabilities">
+      {Object.entries(
+        result.probabilities,
+      ).map(
+        ([label, probability]) => (
+          <div key={label}>
+            <span>
+              {label}
+            </span>
+
+            <strong>
+              {(probability * 100).toFixed(1)}
+              %
+            </strong>
+          </div>
+        ),
+      )}
+    </div>
+  </div>
+) : (
+  <p className="comparison-placeholder">
+    Run the comparison to view this model’s
+    prediction.
+  </p>
+)}
+                
               </article>
             );
           },

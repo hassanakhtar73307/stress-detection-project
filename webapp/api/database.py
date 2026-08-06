@@ -9,7 +9,7 @@ Local development:
 All account/profile records and prediction history are stored server-side.
 """
 from __future__ import annotations
-
+import time
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -101,6 +101,7 @@ predictions = Table(
     Column("comparison_id", String(80), index=True),
     Column("predicted_label", String(40), nullable=False),
     Column("confidence", Float, nullable=False),
+    Column("processing_time_ms", Float),
     Column("probabilities", JSON, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now(), index=True),
 )
@@ -169,7 +170,15 @@ def _ensure_existing_prediction_columns() -> None:
                     "ADD COLUMN comparison_id VARCHAR(80)"
                 )
             )
-
+    if "processing_time_ms" not in existing:
+                with engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE predictions "
+                            "ADD COLUMN processing_time_ms FLOAT"
+                        )
+                    )
+    
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -178,6 +187,7 @@ def _ensure_existing_prediction_columns() -> None:
                 "ON predictions (comparison_id)"
             )
         )
+        
         
 def init_db() -> None:
     metadata.create_all(engine)
@@ -283,6 +293,7 @@ def create_prediction(
     probabilities,
     model_name="xgboost",
     comparison_id=None,
+    processing_time_ms=None,
     sample_id=None,
     source_participant_id=None,
     expected_label=None,
@@ -296,6 +307,7 @@ def create_prediction(
                 expected_label=expected_label,
                 model_name=model_name,
                 comparison_id=comparison_id,
+                processing_time_ms=processing_time_ms,
                 predicted_label=predicted_label,
                 confidence=float(confidence),
                 probabilities=probabilities,

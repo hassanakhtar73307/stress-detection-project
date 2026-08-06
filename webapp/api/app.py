@@ -8,6 +8,7 @@ Run from the project root:
 import os
 import re
 import sys
+import time
 
 import joblib
 import numpy as np
@@ -602,6 +603,7 @@ def predict():
             400,
         )
 
+    prediction_start = time.perf_counter()
     raw_pred_class = selected_model.predict(x)[0]
     pred_class = normalize_model_class(
         requested_model,
@@ -609,11 +611,16 @@ def predict():
     )
 
     raw_probabilities = selected_model.predict_proba(x)[0]
+
+    processing_time_ms = round(
+        (time.perf_counter() - prediction_start) * 1000,
+        3,
+    )
     raw_classes = getattr(
         selected_model,
         "classes_",
         np.arange(len(raw_probabilities)),
-    )
+ )
 
     probabilities = {
         label_name: 0.0
@@ -640,6 +647,7 @@ def predict():
         user_id=request.user_id,
         model_name=requested_model,
         comparison_id=(body.get("comparison_id") or "")[:80] or None,
+        processing_time_ms=processing_time_ms,
         sample_id=(body.get("sample_id") or "")[:80] or None,
         source_participant_id=(
             body.get("participant_id") or ""
@@ -661,6 +669,7 @@ def predict():
             "predicted_label": predicted_label,
             "confidence": confidence,
             "probabilities": probabilities,
+            "processing_time_ms": processing_time_ms,
         }
     )
 if __name__ == "__main__":

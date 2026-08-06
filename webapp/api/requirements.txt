@@ -10,3 +10,4 @@ gunicorn==21.2.0
 SQLAlchemy==2.0.43
 psycopg2-binary==2.9.10
 greenlet==3.2.3
+pytest==8.4.2

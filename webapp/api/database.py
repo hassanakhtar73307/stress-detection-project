@@ -318,7 +318,6 @@ def create_prediction(
 def _count(conn, statement) -> int:
     return int(conn.execute(statement).scalar_one() or 0)
 
-
 def admin_overview(limit=200) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     seven_days_ago = now - timedelta(days=7)
@@ -381,6 +380,7 @@ def admin_overview(limit=200) -> dict[str, Any]:
                 predictions.c.model_name,
                 predictions.c.predicted_label,
                 predictions.c.confidence,
+                predictions.c.processing_time_ms,
                 predictions.c.created_at,
             )
             .select_from(predictions.join(users, predictions.c.user_id == users.c.id))
@@ -443,8 +443,10 @@ def list_predictions(limit=200):
                 predictions.c.sample_id,
                 predictions.c.source_participant_id,
                 predictions.c.expected_label,
+                predictions.c.model_name,
                 predictions.c.predicted_label,
                 predictions.c.confidence,
+                predictions.c.processing_time_ms,
                 predictions.c.probabilities,
                 predictions.c.created_at,
             )

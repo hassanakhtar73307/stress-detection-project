@@ -444,6 +444,7 @@ def list_predictions(limit=200):
                 predictions.c.source_participant_id,
                 predictions.c.expected_label,
                 predictions.c.model_name,
+                predictions.c.comparison_id,
                 predictions.c.predicted_label,
                 predictions.c.confidence,
                 predictions.c.processing_time_ms,

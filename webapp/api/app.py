@@ -640,29 +640,40 @@ def predict():
             4,
         )
 
-    predicted_label = LABEL_NAMES[pred_class]
+        predicted_label = LABEL_NAMES[pred_class]
     confidence = round(float(max(raw_probabilities)), 4)
 
-    prediction_id = database.create_prediction(
-        user_id=request.user_id,
-        model_name=requested_model,
-        comparison_id=(body.get("comparison_id") or "")[:80] or None,
-        processing_time_ms=processing_time_ms,
-        sample_id=(body.get("sample_id") or "")[:80] or None,
-        source_participant_id=(
-            body.get("participant_id") or ""
-        )[:30] or None,
-        expected_label=(
-            body.get("expected_label") or ""
-        )[:40] or None,
-        predicted_label=predicted_label,
-        confidence=confidence,
-        probabilities=probabilities,
-    )
+    benchmark_mode = body.get("benchmark_mode") is True
+
+    if benchmark_mode:
+        denied = require_admin()
+        if denied:
+            return denied
+
+    prediction_id = None
+
+    if not benchmark_mode:
+        prediction_id = database.create_prediction(
+            user_id=request.user_id,
+            model_name=requested_model,
+            comparison_id=(body.get("comparison_id") or "")[:80] or None,
+            processing_time_ms=processing_time_ms,
+            sample_id=(body.get("sample_id") or "")[:80] or None,
+            source_participant_id=(
+                body.get("participant_id") or ""
+            )[:30] or None,
+            expected_label=(
+                body.get("expected_label") or ""
+            )[:40] or None,
+            predicted_label=predicted_label,
+            confidence=confidence,
+            probabilities=probabilities,
+        )
 
     return jsonify(
         {
             "prediction_id": prediction_id,
+	    "benchmark_mode": benchmark_mode,
             "model_name": requested_model,
             "model_display_name": MODEL_DISPLAY_NAMES[requested_model],
             "predicted_class": pred_class,

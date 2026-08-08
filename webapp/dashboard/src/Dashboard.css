@@ -1168,3 +1168,37 @@ textarea:focus-visible {
     margin-left: auto;
   }
 }
+
+/* Final desktop header collision fix */
+@media (min-width: 901px) {
+  .dashboard-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .brand-lockup {
+    width: 100%;
+    flex: none;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+  }
+
+  .system-status {
+    flex: 0 0 auto;
+  }
+
+  .logout-link {
+    margin-left: auto;
+  }
+}
+

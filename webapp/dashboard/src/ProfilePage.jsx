@@ -217,7 +217,7 @@ export default function ProfilePage({ onBack }) {
 
             <section className="profile-info-card prototype-card">
               <strong>Research prototype</strong>
-              <p>Profile context does not alter the XGBoost prediction. Predictions use the selected 45 physiological features only.</p>
+              <p>Profile context does not alter the selected model prediction. Predictions use the selected 45 physiological features only.</p>
             </section>
           </aside>
         </div>

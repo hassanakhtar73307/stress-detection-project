@@ -11,7 +11,7 @@ export default function AuthLayout({ eyebrow, title, description, children, foot
         </div>
 
         <div className="account-brand-copy">
-          <span className="account-kicker">WESAD · XGBoost · 45 features</span>
+          <span className="account-kicker">WESAD · Multi-model AI · 45 features</span>
           <h1>Understand physiological patterns with a clearer, evidence-led dashboard.</h1>
           <p>
             Explore anonymised research samples, view model confidence, and keep your account

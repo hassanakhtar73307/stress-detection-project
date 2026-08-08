@@ -78,6 +78,22 @@ const randomForestResult = {
 };
 
 
+const boostForestResult = {
+  prediction_id: 103,
+  model_name: 'boost_forest',
+  model_display_name: 'Boost Forest',
+  predicted_class: 1,
+  predicted_label: 'Baseline',
+  confidence: 0.94,
+  processing_time_ms: 5.2,
+  probabilities: {
+    Amusement: 0.04,
+    Baseline: 0.94,
+    Stress: 0.02,
+  },
+};
+
+
 describe('ModelComparisonPage', () => {
   beforeEach(() => {
     axios.post.mockReset();
@@ -95,12 +111,15 @@ describe('ModelComparisonPage', () => {
       })
       .mockResolvedValueOnce({
         data: randomForestResult,
+      })
+      .mockResolvedValueOnce({
+        data: boostForestResult,
       });
   });
 
 
   test(
-    'compares both models using one comparison ID',
+    'compares all three models using one comparison ID',
     async () => {
       const user = userEvent.setup();
 
@@ -118,21 +137,23 @@ describe('ModelComparisonPage', () => {
 
       await user.click(
         screen.getByRole('button', {
-          name: 'Compare both models',
+          name: 'Compare all three models',
         }),
       );
 
       await waitFor(() => {
         expect(
           axios.post,
-        ).toHaveBeenCalledTimes(2);
+        ).toHaveBeenCalledTimes(3);
       });
 
       const firstCall = axios.post.mock.calls[0];
       const secondCall = axios.post.mock.calls[1];
+      const thirdCall = axios.post.mock.calls[2];
 
       const firstPayload = firstCall[1];
       const secondPayload = secondCall[1];
+      const thirdPayload = thirdCall[1];
 
       expect(firstPayload.model_name).toBe(
         'xgboost',
@@ -142,57 +163,56 @@ describe('ModelComparisonPage', () => {
         'random_forest',
       );
 
-      expect(firstPayload.comparison_id).toBe(
-        'comparison-test-id',
+      expect(thirdPayload.model_name).toBe(
+        'boost_forest',
       );
 
-      expect(secondPayload.comparison_id).toBe(
-        'comparison-test-id',
-      );
+      for (const payload of [
+        firstPayload,
+        secondPayload,
+        thirdPayload,
+      ]) {
+        expect(payload.comparison_id).toBe(
+          'comparison-test-id',
+        );
 
-      expect(firstPayload.sample_id).toBe(
-        'comparison_scenario_01',
-      );
+        expect(payload.sample_id).toBe(
+          'comparison_scenario_01',
+        );
 
-      expect(secondPayload.sample_id).toBe(
-        'comparison_scenario_01',
-      );
+        expect(payload.participant_id).toBe(
+          'S16',
+        );
 
-      expect(firstPayload.participant_id).toBe(
-        'S16',
-      );
-
-      expect(secondPayload.participant_id).toBe(
-        'S16',
-      );
-
-      expect(firstPayload.expected_label).toBe(
-        'Baseline',
-      );
-
-      expect(secondPayload.expected_label).toBe(
-        'Baseline',
-      );
+        expect(payload.expected_label).toBe(
+          'Baseline',
+        );
+      }
 
       expect(firstPayload.features).toEqual(
         secondPayload.features,
       );
 
-      expect(firstCall[2]).toEqual({
-        headers: stableAuthHeader,
-        timeout: 60000,
-      });
+      expect(firstPayload.features).toEqual(
+        thirdPayload.features,
+      );
 
-      expect(secondCall[2]).toEqual({
-        headers: stableAuthHeader,
-        timeout: 60000,
-      });
+      for (const call of [
+        firstCall,
+        secondCall,
+        thirdCall,
+      ]) {
+        expect(call[2]).toEqual({
+          headers: stableAuthHeader,
+          timeout: 60000,
+        });
+      }
     },
   );
 
 
   test(
-    'displays predictions and processing comparison',
+    'displays all three predictions and processing comparison',
     async () => {
       const user = userEvent.setup();
 
@@ -204,7 +224,7 @@ describe('ModelComparisonPage', () => {
 
       await user.click(
         screen.getByRole('button', {
-          name: 'Compare both models',
+          name: 'Compare all three models',
         }),
       );
 
@@ -237,72 +257,104 @@ describe('ModelComparisonPage', () => {
       ).toBeInTheDocument();
 
       expect(
-        summary.getByText('XGBoost', {
+        summary.getByText('Boost Forest', {
           selector: 'strong',
         }),
       ).toBeInTheDocument();
 
       const xgboostCard = screen
-  .getByRole('heading', {
-    name: 'XGBoost',
-    level: 2,
-  })
-  .closest('article');
+        .getByRole('heading', {
+          name: 'XGBoost',
+          level: 2,
+        })
+        .closest('article');
 
-const randomForestCard = screen
-  .getByRole('heading', {
-    name: 'Random Forest',
-    level: 2,
-  })
-  .closest('article');
+      const randomForestCard = screen
+        .getByRole('heading', {
+          name: 'Random Forest',
+          level: 2,
+        })
+        .closest('article');
 
-expect(xgboostCard).not.toBeNull();
-expect(randomForestCard).not.toBeNull();
+      const boostForestCard = screen
+        .getByRole('heading', {
+          name: 'Boost Forest',
+          level: 2,
+        })
+        .closest('article');
 
-const xgboostView = within(xgboostCard);
-const randomForestView = within(
-  randomForestCard,
-);
+      expect(xgboostCard).not.toBeNull();
+      expect(randomForestCard).not.toBeNull();
+      expect(boostForestCard).not.toBeNull();
 
-expect(
-  xgboostView.getByRole('heading', {
-    name: 'Baseline',
-    level: 3,
-  }),
-).toBeInTheDocument();
+      const xgboostView = within(xgboostCard);
+      const randomForestView = within(
+        randomForestCard,
+      );
+      const boostForestView = within(
+        boostForestCard,
+      );
 
-expect(
-  xgboostView.getByText(/Confidence:/),
-).toHaveTextContent(
-  'Confidence: 91.0%',
-);
+      expect(
+        xgboostView.getByRole('heading', {
+          name: 'Baseline',
+          level: 3,
+        }),
+      ).toBeInTheDocument();
 
-expect(
-  xgboostView.getByText(/Processing time:/),
-).toHaveTextContent(
-  'Processing time: 2.100 ms',
-);
+      expect(
+        xgboostView.getByText(/Confidence:/),
+      ).toHaveTextContent(
+        'Confidence: 91.0%',
+      );
 
-expect(
-  randomForestView.getByRole('heading', {
-    name: 'Stress',
-    level: 3,
-  }),
-).toBeInTheDocument();
+      expect(
+        xgboostView.getByText(/Processing time:/),
+      ).toHaveTextContent(
+        'Processing time: 2.100 ms',
+      );
 
-expect(
-  randomForestView.getByText(/Confidence:/),
-).toHaveTextContent(
-  'Confidence: 76.0%',
-);
+      expect(
+        randomForestView.getByRole('heading', {
+          name: 'Stress',
+          level: 3,
+        }),
+      ).toBeInTheDocument();
 
-expect(
-  randomForestView.getByText(
-    /Processing time:/,
-  ),
-).toHaveTextContent(
-  'Processing time: 4.600 ms',
-);
+      expect(
+        randomForestView.getByText(/Confidence:/),
+      ).toHaveTextContent(
+        'Confidence: 76.0%',
+      );
+
+      expect(
+        randomForestView.getByText(
+          /Processing time:/,
+        ),
+      ).toHaveTextContent(
+        'Processing time: 4.600 ms',
+      );
+
+      expect(
+        boostForestView.getByRole('heading', {
+          name: 'Baseline',
+          level: 3,
+        }),
+      ).toBeInTheDocument();
+
+      expect(
+        boostForestView.getByText(/Confidence:/),
+      ).toHaveTextContent(
+        'Confidence: 94.0%',
+      );
+
+      expect(
+        boostForestView.getByText(
+          /Processing time:/,
+        ),
+      ).toHaveTextContent(
+        'Processing time: 5.200 ms',
+      );
     },
   );
 });

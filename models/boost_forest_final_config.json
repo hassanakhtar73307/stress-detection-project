@@ -1,0 +1,39 @@
+{
+  "model_name": "Boost Forest",
+  "version": "v2",
+  "ensemble_type": "class_wise_probability_blend",
+  "xgb_class_weights": {
+    "baseline": 1.0,
+    "stress": 0.0,
+    "amusement": 0.8
+  },
+  "random_forest_class_weights": {
+    "baseline": 0.0,
+    "stress": 1.0,
+    "amusement": 0.19999999999999996
+  },
+  "oof_weight_selection_f1_macro": 0.7322040763856618,
+  "oof_weight_selection_accuracy": 0.8036199095022625,
+  "n_features": 45,
+  "n_subjects": 15,
+  "n_rows": 1105,
+  "class_names": [
+    "Baseline",
+    "Stress",
+    "Amusement"
+  ],
+  "rf_params": {
+    "n_estimators": 300,
+    "max_depth": 15,
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "xgb_params": {
+    "n_estimators": 300,
+    "max_depth": 3,
+    "learning_rate": 0.1,
+    "eval_metric": "mlogloss",
+    "random_state": 42,
+    "n_jobs": -1
+  }
+}

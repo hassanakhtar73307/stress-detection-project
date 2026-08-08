@@ -66,7 +66,9 @@ function predictionResult(record) {
 }
 
 function formatModelName(modelName) {
-  return modelName === 'random_forest' ? 'Random Forest' : 'XGBoost';
+  if (modelName === 'random_forest') return 'Random Forest';
+  if (modelName === 'boost_forest') return 'Boost Forest';
+  return 'XGBoost';
 }
 
 function SummaryList({ title, rows }) {
@@ -563,6 +565,7 @@ export default function AdminPage({ onBack }) {
                   <option value="all">All models</option>
                   <option value="xgboost">XGBoost</option>
                   <option value="random_forest">Random Forest</option>
+                  <option value="boost_forest">Boost Forest</option>
                 </select>
               </label>
 

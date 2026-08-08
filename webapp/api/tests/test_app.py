@@ -12,6 +12,7 @@ def test_health_endpoint_returns_api_status(client):
     assert set(data["available_models"]) == {
         "xgboost",
         "random_forest",
+        "boost_forest",
     }
 
     assert data["database"]["backend"] == "sqlite"

@@ -66,6 +66,11 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MODEL_PATHS = {
     "xgboost": os.path.join(BASE_DIR, "models", "xgb_final.joblib"),
     "random_forest": os.path.join(BASE_DIR, "models", "rf_final.joblib"),
+    "boost_forest": os.path.join(
+        BASE_DIR,
+        "models",
+        "boost_forest_final.joblib",
+    ),
 }
 
 DEFAULT_MODEL_NAME = "xgboost"
@@ -73,6 +78,7 @@ DEFAULT_MODEL_NAME = "xgboost"
 MODEL_DISPLAY_NAMES = {
     "xgboost": "XGBoost",
     "random_forest": "Random Forest",
+    "boost_forest": "Boost Forest",
 }
 
 MODEL_INSIGHT_FILES = {
@@ -604,43 +610,83 @@ def predict():
         )
 
     prediction_start = time.perf_counter()
-    raw_pred_class = selected_model.predict(x)[0]
-    pred_class = normalize_model_class(
-        requested_model,
-        raw_pred_class,
-    )
 
-    raw_probabilities = selected_model.predict_proba(x)[0]
+    if requested_model == "boost_forest":
+        rf_model = selected_model["rf_model"]
+        xgb_model = selected_model["xgb_model"]
+        xgb_weights = np.asarray(
+            selected_model["xgb_class_weights"],
+            dtype=float,
+        ).reshape(1, 3)
+
+        rf_probabilities = rf_model.predict_proba(x)
+        xgb_probabilities = xgb_model.predict_proba(x)
+
+        blended_probabilities = (
+            xgb_weights * xgb_probabilities
+            + (1.0 - xgb_weights) * rf_probabilities
+        )
+
+        probability_sum = blended_probabilities.sum(
+            axis=1,
+            keepdims=True,
+        )
+        probability_sum[probability_sum == 0] = 1.0
+        blended_probabilities = (
+            blended_probabilities / probability_sum
+        )
+
+        raw_probabilities = blended_probabilities[0]
+        pred_class = int(np.argmax(raw_probabilities))
+        raw_classes = np.arange(3)
+
+    else:
+        raw_pred_class = selected_model.predict(x)[0]
+        pred_class = normalize_model_class(
+            requested_model,
+            raw_pred_class,
+        )
+
+        raw_probabilities = selected_model.predict_proba(x)[0]
+        raw_classes = getattr(
+            selected_model,
+            "classes_",
+            np.arange(len(raw_probabilities)),
+        )
 
     processing_time_ms = round(
         (time.perf_counter() - prediction_start) * 1000,
         3,
     )
-    raw_classes = getattr(
-        selected_model,
-        "classes_",
-        np.arange(len(raw_probabilities)),
- )
 
     probabilities = {
         label_name: 0.0
         for label_name in LABEL_NAMES.values()
     }
 
-    for raw_class, probability in zip(
-        raw_classes,
-        raw_probabilities,
-    ):
-        normalized_class = normalize_model_class(
-            requested_model,
-            raw_class,
-        )
-        probabilities[LABEL_NAMES[normalized_class]] = round(
-            float(probability),
-            4,
-        )
+    if requested_model == "boost_forest":
+        for class_index, probability in enumerate(
+            raw_probabilities
+        ):
+            probabilities[LABEL_NAMES[class_index]] = round(
+                float(probability),
+                4,
+            )
+    else:
+        for raw_class, probability in zip(
+            raw_classes,
+            raw_probabilities,
+        ):
+            normalized_class = normalize_model_class(
+                requested_model,
+                raw_class,
+            )
+            probabilities[LABEL_NAMES[normalized_class]] = round(
+                float(probability),
+                4,
+            )
 
-        predicted_label = LABEL_NAMES[pred_class]
+    predicted_label = LABEL_NAMES[pred_class]
     confidence = round(float(max(raw_probabilities)), 4)
 
     benchmark_mode = body.get("benchmark_mode") is True

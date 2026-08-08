@@ -24,6 +24,14 @@ const MODEL_META = {
     recall: 66.2,
     f1: 63.1,
   },
+  boost_forest: {
+    displayName: 'Boost Forest',
+    status: 'Ensemble',
+    accuracy: 80.1,
+    precision: 70.5,
+    recall: 71.1,
+    f1: 67.9,
+  },
 };
 
 const normaliseLabel = (value) =>
@@ -38,182 +46,149 @@ const createComparisonSummary = (comparison) => {
     sample,
     xgboost,
     random_forest: randomForest,
+    boost_forest: boostForest,
     comparisonId,
   } = comparison;
 
   const expectedLabel = sample.true_label;
 
-  const xgboostCorrect =
-    normaliseLabel(xgboost.predicted_label) ===
-    normaliseLabel(expectedLabel);
+  const modelResults = [
+    { key: 'xgboost', name: 'XGBoost', result: xgboost },
+    {
+      key: 'random_forest',
+      name: 'Random Forest',
+      result: randomForest,
+    },
+    {
+      key: 'boost_forest',
+      name: 'Boost Forest',
+      result: boostForest,
+    },
+  ];
 
-  const randomForestCorrect =
-    normaliseLabel(randomForest.predicted_label) ===
-    normaliseLabel(expectedLabel);
+  const predictions = modelResults.map((item) => ({
+    ...item,
+    prediction: item.result.predicted_label,
+    confidence: Number(item.result.confidence) || 0,
+    processingTime: Number(
+      item.result.processing_time_ms,
+    ),
+    correct:
+      normaliseLabel(item.result.predicted_label) ===
+      normaliseLabel(expectedLabel),
+  }));
 
-  const modelsAgree =
-    normaliseLabel(xgboost.predicted_label) ===
-    normaliseLabel(randomForest.predicted_label);
-
-  const xgboostConfidence =
-    Number(xgboost.confidence) || 0;
-
-  const randomForestConfidence =
-    Number(randomForest.confidence) || 0;
-
-  const confidenceDifference =
-    Math.abs(
-      xgboostConfidence - randomForestConfidence,
-    ) * 100;
-    const classLabels = [
-  'Amusement',
-  'Baseline',
-  'Stress',
-];
-const xgboostProcessingTime = Number(
-  xgboost.processing_time_ms,
-);
-
-const randomForestProcessingTime = Number(
-  randomForest.processing_time_ms,
-);
-
-const processingTimesAvailable =
-  Number.isFinite(xgboostProcessingTime) &&
-  Number.isFinite(randomForestProcessingTime);
-
-const processingTimeDifference =
-  processingTimesAvailable
-    ? Math.abs(
-        xgboostProcessingTime -
-          randomForestProcessingTime,
-      )
-    : null;
-
-let fasterModel = 'Not available';
-
-if (processingTimesAvailable) {
-  if (
-    xgboostProcessingTime <
-    randomForestProcessingTime
-  ) {
-    fasterModel = 'XGBoost';
-  } else if (
-    randomForestProcessingTime <
-    xgboostProcessingTime
-  ) {
-    fasterModel = 'Random Forest';
-  } else {
-    fasterModel = 'Tie';
-  }
-}
-
-const classProbabilityDifferences =
-  classLabels.map((label) => {
-    const xgboostProbability =
-      Number(
-        xgboost.probabilities?.[label],
-      ) || 0;
-
-    const randomForestProbability =
-      Number(
-        randomForest.probabilities?.[label],
-      ) || 0;
-
-    const xgboostPercentage =
-  Number((xgboostProbability * 100).toFixed(1));
-
-const randomForestPercentage =
-  Number((randomForestProbability * 100).toFixed(1));
-
-const difference =
-  Math.abs(
-    xgboostPercentage -
-      randomForestPercentage,
+  const modelsAgree = predictions.every(
+    (item) =>
+      normaliseLabel(item.prediction) ===
+      normaliseLabel(predictions[0].prediction),
   );
 
-let higherModel = 'Equal';
+  const finiteTimes = predictions.filter((item) =>
+    Number.isFinite(item.processingTime),
+  );
 
-if (
-  xgboostPercentage >
-  randomForestPercentage
-) {
-  higherModel = 'XGBoost higher';
-} else if (
-  randomForestPercentage >
-  xgboostPercentage
-) {
-  higherModel = 'Random Forest higher';
-}
+  let fastestModel = 'Not available';
+  let processingTimeRange = null;
 
-    return {
-      label,
-      xgboostProbability: xgboostPercentage,
-      randomForestProbability: randomForestPercentage,
-      difference,
-      higherModel,
-    };
-  });
+  if (finiteTimes.length === predictions.length) {
+    const ordered = [...finiteTimes].sort(
+      (a, b) => a.processingTime - b.processingTime,
+    );
 
-  let betterModel = 'Tie';
-  let betterReason =
-    'Both models produced equally suitable results.';
+    fastestModel =
+      ordered[0].processingTime ===
+      ordered[ordered.length - 1].processingTime
+        ? 'Tie'
+        : ordered[0].name;
 
-  if (xgboostCorrect && !randomForestCorrect) {
-    betterModel = 'XGBoost';
-    betterReason =
-      'XGBoost matched the expected class while Random Forest did not.';
-  } else if (
-    randomForestCorrect &&
-    !xgboostCorrect
-  ) {
-    betterModel = 'Random Forest';
-    betterReason =
-      'Random Forest matched the expected class while XGBoost did not.';
-  } else if (
-    xgboostCorrect &&
-    randomForestCorrect
-  ) {
-    if (
-      xgboostConfidence >
-      randomForestConfidence
-    ) {
-      betterModel = 'XGBoost';
-      betterReason =
-        'Both models were correct, but XGBoost had higher confidence.';
-    } else if (
-      randomForestConfidence >
-      xgboostConfidence
-    ) {
-      betterModel = 'Random Forest';
-      betterReason =
-        'Both models were correct, but Random Forest had higher confidence.';
-    } else {
-      betterModel = 'Tie';
-      betterReason =
-        'Both models were correct with equal confidence.';
-    }
-  } else {
-    betterModel = 'Neither';
-    betterReason =
-      'Neither model matched the expected class for this sample.';
+    processingTimeRange =
+      ordered[ordered.length - 1].processingTime -
+      ordered[0].processingTime;
   }
+
+  const confidenceValues = predictions.map(
+    (item) => item.confidence,
+  );
+
+  const confidenceRange =
+    (Math.max(...confidenceValues) -
+      Math.min(...confidenceValues)) *
+    100;
+
+  const correctModels = predictions.filter(
+    (item) => item.correct,
+  );
+
+  let bestModel = 'None';
+  let bestReason =
+    'None of the three models matched the expected class for this sample.';
+
+  if (correctModels.length > 0) {
+    const orderedCorrect = [...correctModels].sort(
+      (a, b) => b.confidence - a.confidence,
+    );
+
+    bestModel = orderedCorrect[0].name;
+
+    if (correctModels.length === 1) {
+      bestReason =
+        `${bestModel} was the only model that matched the expected class.`;
+    } else {
+      bestReason =
+        `${bestModel} had the highest confidence among the models that matched the expected class.`;
+    }
+  }
+
+  const classLabels = [
+    'Amusement',
+    'Baseline',
+    'Stress',
+  ];
+
+  const classProbabilityComparisons =
+    classLabels.map((label) => {
+      const values = modelResults.map((item) => ({
+        key: item.key,
+        name: item.name,
+        percentage: Number(
+          (
+            (Number(
+              item.result.probabilities?.[label],
+            ) || 0) * 100
+          ).toFixed(1),
+        ),
+      }));
+
+      const sorted = [...values].sort(
+        (a, b) => b.percentage - a.percentage,
+      );
+
+      return {
+        label,
+        values,
+        range:
+          sorted[0].percentage -
+          sorted[sorted.length - 1].percentage,
+        highestModel:
+          sorted[0].percentage ===
+          sorted[sorted.length - 1].percentage
+            ? 'Equal'
+            : `${sorted[0].name} higher`,
+      };
+    });
 
   return {
     comparisonId,
     expectedLabel,
+    predictions,
     modelsAgree,
-    confidenceDifference,
-    betterModel,
-    betterReason,
-    classProbabilityDifferences,
-    xgboostPrediction: xgboost.predicted_label,
-    randomForestPrediction:
-    randomForest.predicted_label,
-    xgboostProcessingTime,
-    randomForestProcessingTime,
-    processingTimeDifference,
-    fasterModel,
+    fastestModel,
+    processingTimeRange,
+    confidenceRange,
+    bestModel,
+    bestReason,
+    classProbabilityComparisons,
   };
 };
 
@@ -264,6 +239,7 @@ export default function ModelComparisonPage({
       const [
         xgboostResponse,
         randomForestResponse,
+        boostForestResponse,
       ] = await Promise.all([
         axios.post(
           PREDICT_URL,
@@ -290,6 +266,20 @@ export default function ModelComparisonPage({
             timeout: 60000,
           },
         ),
+
+        axios.post(
+          PREDICT_URL,
+          {
+            ...createPayload(
+              'boost_forest',
+            ),
+            comparison_id: comparisonId,
+          },
+          {
+            headers: authHeader,
+            timeout: 60000,
+          },
+        ),
       ]);
 
       setComparison({
@@ -298,6 +288,8 @@ export default function ModelComparisonPage({
         xgboost: xgboostResponse.data,
         random_forest:
           randomForestResponse.data,
+        boost_forest:
+          boostForestResponse.data,
       });
     } catch (requestError) {
       if (
@@ -327,9 +319,8 @@ export default function ModelComparisonPage({
           <h1>Model Comparison</h1>
 
           <p>
-            Run the same 45-feature WESAD
-            sample through XGBoost and Random
-            Forest.
+            Run the same 45-feature WESAD sample through
+            XGBoost, Random Forest and Boost Forest.
           </p>
         </div>
 
@@ -382,7 +373,7 @@ WESAD {sample.subject}
         >
           {loading
             ? 'Comparing models...'
-            : 'Compare both models'}
+            : 'Compare all three models'}
         </button>
       </section>
 
@@ -413,99 +404,74 @@ WESAD {sample.subject}
             </div>
           </div>
 <div className="comparison-summary-grid">
-    <div className="comparison-summary-item">
-  <span>Processing speed</span>
-
-  <strong>
-    {comparisonSummary.fasterModel ===
-    'Not available'
-      ? 'Not available'
-      : `${comparisonSummary.fasterModel} faster`}
-  </strong>
-
-  <p>
-    XGBoost:{' '}
-    {Number.isFinite(
-      comparisonSummary.xgboostProcessingTime,
-    )
-      ? comparisonSummary.xgboostProcessingTime.toFixed(
-          3,
-        )
-      : 'N/A'}
-    {' ms · '}
-    Random Forest:{' '}
-    {Number.isFinite(
-      comparisonSummary.randomForestProcessingTime,
-    )
-      ? comparisonSummary.randomForestProcessingTime.toFixed(
-          3,
-        )
-      : 'N/A'}
-    {' ms'}
-    {comparisonSummary.processingTimeDifference !==
-      null &&
-      ` · Difference: ${comparisonSummary.processingTimeDifference.toFixed(
-        3,
-      )} ms`}
-  </p>
-</div>
   <div className="comparison-summary-item">
-    <span>Ground truth</span>
-
+    <span>Processing speed</span>
     <strong>
-      {comparisonSummary.expectedLabel}
+      {comparisonSummary.fastestModel === 'Not available'
+        ? 'Not available'
+        : comparisonSummary.fastestModel === 'Tie'
+          ? 'Tie'
+          : `${comparisonSummary.fastestModel} faster`}
     </strong>
-
     <p>
-      Known research label revealed after both models
-      complete their predictions.
+      {comparisonSummary.predictions.map(
+        (item, index) => (
+          <span key={item.key}>
+            {index > 0 && ' · '}
+            {item.name}:{' '}
+            {Number.isFinite(item.processingTime)
+              ? `${item.processingTime.toFixed(3)} ms`
+              : 'N/A'}
+          </span>
+        ),
+      )}
+      {comparisonSummary.processingTimeRange !== null &&
+        ` · Range: ${comparisonSummary.processingTimeRange.toFixed(3)} ms`}
     </p>
   </div>
 
   <div className="comparison-summary-item">
-    <span>Model agreement</span>
+    <span>Ground truth</span>
+    <strong>{comparisonSummary.expectedLabel}</strong>
+    <p>
+      Known WESAD research label used to evaluate
+      the three predictions for this sample.
+    </p>
+  </div>
 
+  <div className="comparison-summary-item">
+    <span>Three-model agreement</span>
     <strong>
       {comparisonSummary.modelsAgree ? 'Yes' : 'No'}
     </strong>
-
     <p>
-      XGBoost:{' '}
-      {comparisonSummary.xgboostPrediction}
-      {' · '}
-      Random Forest:{' '}
-      {comparisonSummary.randomForestPrediction}
+      {comparisonSummary.predictions.map(
+        (item, index) => (
+          <span key={item.key}>
+            {index > 0 && ' · '}
+            {item.name}: {item.prediction}
+          </span>
+        ),
+      )}
     </p>
   </div>
 
   <div className="comparison-summary-item">
-    <span>
-      Top-confidence difference
-    </span>
-
+    <span>Confidence range</span>
     <strong>
-      {comparisonSummary.confidenceDifference.toFixed(1)}
+      {comparisonSummary.confidenceRange.toFixed(1)}
       {' percentage points'}
     </strong>
-
     <p>
-      Difference between each model’s highest prediction
-      confidence for this sample.
+      Difference between the highest and lowest
+      top-class confidence across all three models.
     </p>
   </div>
 
   <div className="comparison-summary-item">
-    <span>
-      Best result for this sample
-    </span>
-
-    <strong>
-      {comparisonSummary.betterModel}
-    </strong>
-
-    <p>
-      {comparisonSummary.betterReason}
-    </p>
+    <span>Best matching result for this sample</span>
+    <strong>{comparisonSummary.bestModel}</strong>
+    <p>{comparisonSummary.bestReason}</p>
   </div>
 </div>
 
@@ -514,20 +480,17 @@ WESAD {sample.subject}
     <span className="eyebrow">
       All class probabilities
     </span>
-
     <h3>
       Amusement, Baseline and Stress comparison
     </h3>
-
     <p>
-      This compares the probability assigned to every
-      class by both models, not only the final predicted
-      class.
+      Compare the probability assigned to every
+      class by XGBoost, Random Forest and Boost Forest.
     </p>
   </div>
 
   <div className="class-probability-grid">
-    {comparisonSummary.classProbabilityDifferences.map(
+    {comparisonSummary.classProbabilityComparisons.map(
       (classResult) => (
         <article
           className="class-probability-card"
@@ -535,33 +498,24 @@ WESAD {sample.subject}
         >
           <h4>{classResult.label}</h4>
 
-          <div>
-            <span>XGBoost</span>
-
-            <strong>
-              {classResult.xgboostProbability.toFixed(1)}%
-            </strong>
-          </div>
-
-          <div>
-            <span>Random Forest</span>
-
-            <strong>
-              {classResult.randomForestProbability.toFixed(1)}
-              %
-            </strong>
-          </div>
+          {classResult.values.map((item) => (
+            <div key={item.key}>
+              <span>{item.name}</span>
+              <strong>
+                {item.percentage.toFixed(1)}%
+              </strong>
+            </div>
+          ))}
 
           <div className="class-difference">
-            <span>Difference</span>
-
+            <span>Range</span>
             <strong>
-              {classResult.difference.toFixed(1)}
+              {classResult.range.toFixed(1)}
               {' percentage points'}
             </strong>
           </div>
 
-          <p>{classResult.higherModel}</p>
+          <p>{classResult.highestModel}</p>
         </article>
       ),
     )}

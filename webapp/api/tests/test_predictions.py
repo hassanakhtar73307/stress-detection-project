@@ -81,6 +81,7 @@ def test_predict_rejects_unsupported_model(client):
     assert set(data["available_models"]) == {
         "xgboost",
         "random_forest",
+        "boost_forest",
     }
 
 

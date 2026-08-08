@@ -39,6 +39,14 @@ const MODEL_META = {
     recall: 66.2,
     f1: 63.1,
   },
+  boost_forest: {
+    displayName: 'Boost Forest',
+    status: 'Ensemble',
+    accuracy: 80.1,
+    precision: 70.5,
+    recall: 71.1,
+    f1: 67.9,
+  },
 };
 
 const STATE_META = {
@@ -521,9 +529,9 @@ useEffect(() => {
     <span className="eyebrow">Prediction model</span>
     <h2>Choose a trained model</h2>
     <p>
-      {activeModelMeta.displayName} is currently selected. XGBoost is the
-      recommended model, while Random Forest is available for alternative
-      predictions.
+      {activeModelMeta.displayName} is currently selected. XGBoost and
+      Random Forest are the tuned base models, while Boost Forest combines
+      both using class-specific probability weights.
     </p>
   </div>
 
@@ -554,6 +562,20 @@ useEffect(() => {
     >
       <strong>Random Forest</strong>
       <span>Alternative · Accuracy 76.8%</span>
+    </button>
+
+    <button
+      type="button"
+      className={`model-option ${
+        selectedModel === 'boost_forest' ? 'active' : ''
+      }`}
+      onClick={() => {
+      setSelectedModel('boost_forest');
+      resetHistory();
+  }}
+    >
+      <strong>Boost Forest</strong>
+      <span>Ensemble · Accuracy 80.1%</span>
     </button>
   </div>
 </section>

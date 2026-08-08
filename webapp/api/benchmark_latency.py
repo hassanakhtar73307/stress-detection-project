@@ -101,10 +101,11 @@ def main():
     if MODEL_NAME not in {
         "xgboost",
         "random_forest",
+        "boost_forest",
     }:
         raise RuntimeError(
             "BENCHMARK_MODEL must be "
-            "xgboost or random_forest."
+            "xgboost, random_forest, or boost_forest."
         )
 
     print(f"API: {API_BASE}")

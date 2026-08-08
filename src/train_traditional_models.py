@@ -59,7 +59,10 @@ def loso_evaluate(df, feature_cols, model_fn, model_name):
 
         try:
             y_proba = model.predict_proba(X_test)
-            y_test_bin = label_binarize(y_test, classes=[1, 2, 3])
+            y_test_bin = label_binarize(
+    y_test,
+    classes=model.classes_,
+)
             if y_test_bin.shape[1] == y_proba.shape[1]:
                 auc = roc_auc_score(y_test_bin, y_proba, average="macro", multi_class="ovr")
             else:

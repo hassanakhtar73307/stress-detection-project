@@ -1,7 +1,7 @@
 metric,comparison,statistic,p_value,significant_0.05,effect_size_r
 accuracy,rf_vs_xgb,9.0,0.018602929901135743,True,-0.6666666666666666
 accuracy,xgb_vs_lstm,2.0,0.00018310546875,True,0.8666666666666667
-accuracy,rf_vs_lstm,3.0,0.00030517578125,True,0.7333333333333333
+accuracy,rf_vs_lstm,5.0,0.0006103515625,True,0.8666666666666667
 f1_macro,rf_vs_xgb,11.0,0.015906444101703374,True,-0.5384615384615384
-f1_macro,xgb_vs_lstm,15.0,0.00836181640625,True,0.7333333333333333
-f1_macro,rf_vs_lstm,19.0,0.01806640625,True,0.6
+f1_macro,xgb_vs_lstm,15.0,0.00836181640625,True,0.6
+f1_macro,rf_vs_lstm,20.0,0.02154541015625,True,0.6

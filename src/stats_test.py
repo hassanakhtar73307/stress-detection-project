@@ -13,7 +13,7 @@ from scipy.stats import wilcoxon
 # Load per-subject LOSO results
 rf = pd.read_csv("models/rf_loso_results.csv")
 xgb = pd.read_csv("models/xgb_loso_results.csv")
-lstm = pd.read_csv("models/lstm_loso_results.csv")
+lstm = pd.read_csv("models/lstm_loso_results_tuned.csv")
 
 # Merge on subject so rows line up correctly (Wilcoxon needs matched pairs)
 merged = rf[["subject", "accuracy", "f1_macro"]].merge(

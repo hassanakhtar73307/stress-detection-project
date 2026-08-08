@@ -18,7 +18,14 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    confusion_matrix,
+)
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.utils.class_weight import compute_class_weight
@@ -113,9 +120,24 @@ def loso_evaluate(sequences, labels, subjects, tuned_cfg):
         rec = recall_score(y_test, y_pred, average="macro", zero_division=0)
         f1 = f1_score(y_test, y_pred, average="macro", zero_division=0)
 
+        try:
+            auc = roc_auc_score(
+                y_test,
+                y_proba,
+                average="macro",
+                multi_class="ovr",
+                labels=[0, 1, 2],
+            )
+        except ValueError:
+            auc = np.nan
+
         results.append({
-            "subject": test_subject, "accuracy": acc, "precision": prec,
-            "recall": rec, "f1_macro": f1
+            "subject": test_subject,
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
+            "f1_macro": f1,
+            "roc_auc": auc,
         })
 
         all_true.extend([inv_label_map[y] for y in y_test])

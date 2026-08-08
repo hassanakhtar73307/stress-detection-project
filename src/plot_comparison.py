@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 rf = pd.read_csv("models/rf_loso_results.csv")
 xgb = pd.read_csv("models/xgb_loso_results.csv")
-lstm = pd.read_csv("models/lstm_loso_results.csv")
+lstm = pd.read_csv("models/lstm_loso_results_tuned.csv")
 
 models = ["Random Forest", "XGBoost", "LSTM"]
 means = [rf["f1_macro"].mean(), xgb["f1_macro"].mean(), lstm["f1_macro"].mean()]

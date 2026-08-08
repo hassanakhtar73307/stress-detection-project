@@ -1134,3 +1134,37 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* Prevent desktop header collisions at normal browser zoom.
+   The action/navigation group may wrap instead of overflowing
+   into the brand lockup. */
+.dashboard-header {
+  align-items: flex-start;
+}
+
+.brand-lockup {
+  flex: 0 0 auto;
+}
+
+.header-actions {
+  flex: 1 1 720px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+@media (min-width: 901px) and (max-width: 1550px) {
+  .dashboard-header {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .logout-link {
+    margin-left: auto;
+  }
+}

@@ -789,9 +789,8 @@ useEffect(() => {
             <div>
               <span className="eyebrow">Model insight</span>
               <p>
-                Global contribution of each sensor group across the trained{' '}
-                {activeModelMeta.displayName} model. This does not explain an
-                individual prediction.
+                {insights.note ||
+                  `Global contribution of each sensor group across the trained ${activeModelMeta.displayName} model. This does not explain an individual prediction.`}
               </p>
             </div>
           </div>

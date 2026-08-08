@@ -90,6 +90,17 @@ MODEL_INSIGHT_FILES = {
         "sensor_file": "random_forest_feature_importance_by_sensor.csv",
         "feature_file": "random_forest_feature_importance.csv",
     },
+    "boost_forest": {
+        "sensor_file": "boost_forest_feature_importance_by_sensor.csv",
+        "feature_file": "boost_forest_feature_importance.csv",
+        "note": (
+            "Boost Forest global importance is an ensemble-level approximation "
+            "formed from the normalized XGBoost and Random Forest global "
+            "feature importances. The contribution weights are derived from "
+            "the final class-specific blend and macro-averaged across the "
+            "three classes. It is not a per-prediction explanation."
+        ),
+    },
 }
 
 FEATURES_PATH = os.path.join(
@@ -517,6 +528,7 @@ def model_insights():
             "display_name": MODEL_DISPLAY_NAMES[requested_model],
             "by_sensor": by_sensor.to_dict(orient="records"),
             "top_features": top_features.to_dict(orient="records"),
+            "note": config.get("note"),
         }
     )
 
